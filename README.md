@@ -1,7 +1,7 @@
 # Open Job Tracker
 
-A private job-application dashboard with resume onboarding and an optional Codex
-CLI worker. Each person runs their own copy with their own account, resume,
+A private job-application dashboard with resume onboarding, a Codex CLI worker,
+and guided integrations for ChatGPT Dots and Claude Code. Each person runs their own copy with their own account, resume,
 preferences, database, and application history.
 
 The source archive contains no applicant data, accounts, credentials, application
@@ -23,6 +23,27 @@ are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 - Tracks verified applications, research, exclusions, blockers, salary details,
   sponsorship information, resume versions, and confirmation evidence.
 - Supports search, sorting, filters, detail drawers, live updates, and CSV export.
+
+## Choose your agent
+
+| Option | What is included | Where it runs |
+| --- | --- | --- |
+| ChatGPT / Codex | CLI worker, preflight and recovery | The machine running the worker |
+| ChatGPT Dot | Cloud handoff page and step-by-step API guide | Dot cloud, after private access and tools are verified |
+| Claude | Claude Code setup and shared API workflow | The authorized Claude/browser environment |
+
+Open **Connect your agent** (`/connect`) to copy a setup message for your own
+tracker URL. Dots require a privately hosted HTTPS copy. The local page explains
+this instead of handing a Dot an unusable localhost URL. Copying a message does
+not install tools, authenticate an agent, create a schedule or start a worker.
+
+For an LLM installing this project, read [AGENTS.md](AGENTS.md) first. Claude also
+has [CLAUDE.md](CLAUDE.md). Use the detailed, numbered guides:
+
+- [ChatGPT / Codex installation and usage](docs/GPT-WORKFLOW.md)
+- [Dot cloud installation, private hosting and scheduling](docs/DOTS-WORKFLOW.md)
+- [Claude installation and usage](docs/CLAUDE-WORKFLOW.md)
+- [Shared execution protocol for every LLM](docs/AGENT-PROTOCOL.md)
 
 ## Local setup
 
@@ -112,6 +133,95 @@ It does not bypass CAPTCHAs, browser permissions, logins, or confirmation rules.
 Missing tools or applicant facts can leave a run blocked. Read
 [docs/CODEX-WORKFLOW.md](docs/CODEX-WORKFLOW.md) before enabling submissions.
 
+## ChatGPT / GPT step-by-step
+
+1. Install this repository using **Local setup**, or use the Dot route below for
+   cloud-only work. Keep existing private data when updating.
+2. Complete **First run** with your own resume, locations, limits and facts.
+3. Install the [official Codex CLI](https://learn.chatgpt.com/docs/codex/cli), sign
+   in with `codex login`, and configure browser tools for that CLI environment.
+4. Run `npm run worker:check`, then `npm run worker` in a second terminal.
+5. Review verified results, blockers and the saved schedule. Keep the server and
+   worker running for local recurring work; use Pause before switching providers.
+
+A capable ChatGPT/Codex session can instead follow the shared API protocol. Open
+**Connect your agent → ChatGPT / Codex** and send its message to that session.
+Do not run that session and the CLI worker together. Plain GPT chat or an API key
+alone does not supply browser automation, authenticated HTTP or file-upload tools.
+
+Copy this instruction to your LLM:
+
+> Install my own copy of this repository. Read AGENTS.md and
+> docs/GPT-WORKFLOW.md. Confirm my local or cloud execution choice, preserve private
+> state, and follow the numbered installation steps. Help me review my resume,
+> roles, locations, frequency, limits and factual answers. Verify tools before
+> claiming work. Use one worker and docs/AGENT-PROTOCOL.md for authorized batches.
+
+## Add it to your Dot, step-by-step
+
+1. Publish **your own** copy behind owner-only authentication with its own D1
+   database and migrations. Follow **Private hosting and security** below and the
+   [Sites publishing steps](docs/DOTS-WORKFLOW.md#publish-a-private-copy-with-sites).
+   Never expose an unauthenticated development server to reach it from the cloud.
+2. Complete the resume and preference setup on that hosted copy.
+3. Open **Connect your agent → ChatGPT Dot** and copy the generated message.
+4. Send it to your Dot. Require its own cloud computer/browser, with no use of your
+   personal computer and no delegation to Codex or Work tasks.
+5. Complete any sign-in in the Dot's cloud browser. Have it verify authenticated
+   API access, browser actions and resume upload capability before claiming work.
+6. If you want background checks, request one Dot cloud queue-check schedule every
+   15 minutes in your timezone. Verify its real identifier and next run under
+   **Scheduled**. If unsupported, leave it manual or blocked, not falsely connected.
+7. Let it process only queued/due batches through `/api/worker`. Saved manual,
+   daily or weekly preferences still determine which batches are due.
+8. Review confirmations; use **Apply for more** within your saved limits. To stop,
+   pause the dashboard and disable the Dot schedule separately.
+
+The generated prompt is the LLM handoff. It points to the installed copy's
+read-only `/api/agent-guide`, which supplies claim, heartbeat, cap, pause, evidence
+and recovery instructions. No applicant data or credential is embedded in it.
+
+This is a guided integration; a real Dot submission run has not been validated by
+this project. A 15-minute poll may show offline between checks because worker
+heartbeats expire after 90 seconds. Do not confuse that indicator with a saved
+schedule or verified browser connection. Dots have usage allowances, and delegated
+Codex/Work tasks still consume those products' limits. See the official
+[cloud browser](https://learn.chatgpt.com/docs/dots/computers-and-apps),
+[schedules](https://learn.chatgpt.com/docs/dots/tasks-and-memory) and
+[usage guidance](https://learn.chatgpt.com/docs/dots).
+
+## Use it with Claude, step-by-step
+
+1. Follow **Local setup** and **First run** above. Keep the dashboard server open.
+2. Install Claude Code from its [official quickstart](https://code.claude.com/docs/en/quickstart)
+   and complete the supported sign-in flow with your own account.
+3. Configure authorized browser tools. For the supported local Chrome route,
+   install the official Claude in Chrome extension, then run `claude --chrome`
+   in this repository. Use `/chrome` to check the connection. Follow its
+   [account and platform prerequisites](https://code.claude.com/docs/en/chrome).
+4. Open **Connect your agent → Claude** and send its setup message to Claude Code.
+   Do **not** run `npm run worker`, which starts Codex.
+5. Have Claude read `CLAUDE.md`, verify API/browser/upload access and follow
+   `docs/AGENT-PROTOCOL.md` to claim one batch, maintain heartbeats, record each
+   confirmation and finish it truthfully.
+6. Review the results and use **Apply for more** for another authorized batch.
+   There is no bundled Claude daemon or scheduler; repeated background execution
+   requires a separately configured, authorized runner with the same capabilities.
+
+Copy this instruction to Claude:
+
+> Install my private copy of this repository. Read CLAUDE.md and
+> docs/CLAUDE-WORKFLOW.md and follow their numbered steps. Use Claude, not the Codex
+> worker. Respect my selected execution environment. Help me save my resume,
+> roles, locations, frequency, limits and verified facts. Check browser/API/upload
+> access before claiming work, and follow docs/AGENT-PROTOCOL.md for each batch.
+
+Local Claude Chrome access uses that computer. If you want your personal computer
+untouched, provide a separate supported machine/environment and verify its browser
+and private API access. Hosting only the dashboard does not relocate the browser.
+A plain Claude chat is not an execution integration. Claude submissions have not
+been end-to-end validated by this project; normal permissions and usage apply.
+
 ## Use the dashboard
 
 - Choose a status tab, search a company/role/location, or use filters to narrow the
@@ -128,8 +238,8 @@ Missing tools or applicant facts can leave a run blocked. Read
 
 A running worker consumes daily/weekly schedule preferences. The next recurring
 batch is scheduled after the previous batch completes. Saving a preference
-does not create an operating-system automation. The server, worker, and computer
-must remain running for scheduled checks. Pausing can stop future steps, but an
+does not create an operating-system automation. For the local CLI path, the server, worker, and computer must remain running.
+A configured Dot cloud schedule uses the hosted server and its own cloud environment. Pausing can stop future steps, but an
 already transmitted application cannot be recalled by this dashboard.
 
 ## Private hosting and security
@@ -167,6 +277,7 @@ uncertain applications automatically.
 
 ## Source and customization
 
+- `app/connect/page.tsx`: provider handoff; `app/api/agent-guide/`: read-only LLM protocol.
 - `app/page.tsx`: dashboard; `components/onboarding.tsx`: guided setup.
 - `lib/profile.ts`: generic display name, initials, export prefix, locale, timezone.
 - `lib/tracker.ts`: job and run shapes; `lib/onboarding-core.ts`: setup validation.
@@ -192,7 +303,8 @@ licenses remain applicable. Build and dependency logs may include upstream warni
 
 ## Integration limits
 
-This is a single-owner starter, not a multi-user hosted product. There is no
+This is a single-owner starter, not a multi-user hosted product. Dot and Claude
+paths are documented API workflows, not native provider plugins or bundled daemons. There is no
 ChatGPT plugin, OAuth provider, remote MCP server, or automatic access to an
 owner's ChatGPT apps. Being signed into ChatGPT in a browser does not connect this
 app to Codex. The CLI worker requires its own configured login and tools. Employer

@@ -86,7 +86,7 @@ skipped, rejected, withdrawn. `skipped` means excluded during eligibility review
   records the outcome. Completion requires the target number of verified
   submissions. Recurring schedules continue only after a completed batch.
 
-Use the included worker rather than creating ad hoc concurrent workers. A second
+Use one worker: the included Codex worker or an agent following the shared protocol. A second
 worker must not reclaim an uncertain submission automatically. Pause, review
 proofs, recover saved progress, then resume deliberately. Application caps are
 checked against verified history, not just the current Applied tab.
@@ -95,3 +95,11 @@ This API is not a ChatGPT plugin or MCP server. It does not implement OAuth or
 provide access to a user's connected ChatGPT apps. A compatible private hosting
 access token may be supplied to the included worker as documented in the README;
 those tokens are infrastructure access credentials, not applicant data.
+
+## Agent handoff
+
+`GET /api/agent-guide` returns the provider-neutral worker protocol without resume
+bytes, personal facts or ledger data. It is read-only and does not claim work.
+`/connect` generates origin-specific setup messages for Dots, ChatGPT/Codex and
+Claude. It does not install an integration or verify that a schedule exists.
+See [docs/AGENT-PROTOCOL.md](docs/AGENT-PROTOCOL.md).
