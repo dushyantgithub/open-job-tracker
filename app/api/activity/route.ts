@@ -1,0 +1,2 @@
+import { json, failure, authorize, logActivity } from "@/lib/server";
+export async function POST(request: Request) { const denied = authorize(request); if (denied) return denied; try { const body = await request.json() as {message?: string; type?: string; jobId?: string}; if (!body.message || typeof body.message !== "string") return json({ error: "message is required" }, 400); return json({ activity: await logActivity(body.message.slice(0,4000), body.type || "info", body.jobId || null) }, 201); } catch(error) { return failure(error); } }

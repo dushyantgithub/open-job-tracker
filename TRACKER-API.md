@@ -1,0 +1,97 @@
+# Private-copy API
+
+Every endpoint requires the deployment's owner-only authentication boundary.
+Local development is loopback-only. The app's same-origin, Fetch Metadata, and
+content-type checks are **not authentication**. This is a single-owner database;
+there is no multi-tenant or public API mode. See [docs/SECURITY.md](docs/SECURITY.md).
+
+Use JSON for mutations except the multipart resume upload. GET responses and
+private data are not cacheable. Retain stable job IDs and verify actual receipts.
+Do not import untrusted records blindly or write credentials to job notes.
+
+## Onboarding
+
+- `GET /api/onboarding` returns `configured`, resume metadata, local keyword
+  analysis, saved preferences, worker status/lastSeenAt, schedule, and run state.
+  It omits resume bytes and full text.
+- `POST /api/onboarding/resume` accepts multipart field `resume`, a PDF/MD/TXT
+  file no larger than 1 MiB. It stores the original and extracted text privately
+  and returns the updated setup object with suggested roles and supporting evidence.
+- `POST /api/onboarding` saves preferences. Complete resume setup first. Active
+  requests must be paused and fully stopped before replacing preferences.
+- `POST /api/onboarding/start` queues the initial batch within saved limits and
+  enables the saved schedule. It reports `awaiting_worker`, not a submission.
+
+Preferences:
+
+```json
+{
+  "selectedRoles": ["Software Engineer"],
+  "locations": ["US"],
+  "indiaCities": [],
+  "frequency": "manual",
+  "batchLimit": 5,
+  "totalLimit": 20,
+  "applicantFacts": ""
+}
+```
+
+This is only a schema example, not a seeded profile. Locations accept EU/US/IN/AU/CA.
+India requires one or more of Bengaluru/Pune/Mumbai; the UI labels Bengaluru as
+Bangalore / Bengaluru. Frequency accepts manual/daily/weekly. Batch limits are
+1-100; total limits are 1-1,000 and must cover the batch size and existing verified
+submissions. No citizenship, language, salary, or work-authorization facts are
+implied by these settings. Optional `applicantFacts` is a plain-text field up to
+8,000 characters. It is passed to the worker with the search plan; keep it factual
+and do not assume the worker can access unrelated chat history.
+
+## Ledger and queue
+
+- `GET /api/data`: jobs, activity, requests, run, verifiedTotal, serverTime. The UI
+  polls every five seconds. Verified submissions include later rejected/withdrawn
+  records that retain their original confirmation.
+- `POST /api/jobs`: one job, an array, or `{ "jobs": [...] }`, up to 200 records.
+  New jobs need stable `id`, company and title. Updates merge existing fields.
+  Confirmed submissions need `appliedAt` and `confirmation`. The server checks
+  duplicate posting identities and preserves existing confirmation evidence.
+- `POST /api/activity`: `{ "message": "...", "type": "info", "jobId": "..." }`.
+- `POST /api/run`: merges run display state. Follow the queue/worker protocol for
+  execution; a display status alone does not submit an application.
+- `POST /api/more`: queues a batch within saved per-run and total limits. Existing
+  active work is returned without creating another concurrent request.
+- `GET /api/requests`: queue history, newest first.
+- `POST /api/requests`: legacy request updates; prefer the worker protocol so run
+  ownership, completion checks, and scheduling stay consistent.
+
+Job fields are defined in `lib/tracker.ts`. Core fields include posting/company
+URLs, title, location, region, portal, status, resume version, salary information,
+sponsorship evidence, notes, reason, timestamps and confirmation evidence. `region`
+accepts EU/US/IN/AU/CA/Other. Visa support accepts confirmed/not stated/unavailable.
+Allowed job statuses are discovered, shortlisted, preparing, applied, blocked,
+skipped, rejected, withdrawn. `skipped` means excluded during eligibility review;
+`rejected` means a rejection received from an employer.
+
+## Worker protocol
+
+`POST /api/worker` accepts one action at a time:
+
+- `pause`: stops scheduling, cancels queued work, and asks a claimed worker to stop.
+  Active work may remain `pausing` until the worker acknowledges it.
+- `tick` with `workerId`: records a heartbeat and atomically claims an eligible
+  queued batch. A claimed response includes the request, preferences, private
+  resume and ledger. A null request means no work is available.
+- `heartbeat` with `workerId` and `requestId`: reports whether the worker should
+  pause. Only the worker owning the request should execute it.
+- `finish` with `workerId`, `requestId`, `status` (completed/blocked), and `message`:
+  records the outcome. Completion requires the target number of verified
+  submissions. Recurring schedules continue only after a completed batch.
+
+Use the included worker rather than creating ad hoc concurrent workers. A second
+worker must not reclaim an uncertain submission automatically. Pause, review
+proofs, recover saved progress, then resume deliberately. Application caps are
+checked against verified history, not just the current Applied tab.
+
+This API is not a ChatGPT plugin or MCP server. It does not implement OAuth or
+provide access to a user's connected ChatGPT apps. A compatible private hosting
+access token may be supplied to the included worker as documented in the README;
+those tokens are infrastructure access credentials, not applicant data.
