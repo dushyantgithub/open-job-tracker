@@ -91,7 +91,7 @@ worker must not reclaim an uncertain submission automatically. Pause, review
 proofs, recover saved progress, then resume deliberately. Application caps are
 checked against verified history, not just the current Applied tab.
 
-This API is not a ChatGPT plugin or MCP server. It does not implement OAuth or
+The HTTP API also has an MCP tool facade at `POST /mcp`. It does not implement OAuth or
 provide access to a user's connected ChatGPT apps. A compatible private hosting
 access token may be supplied to the included worker as documented in the README;
 those tokens are infrastructure access credentials, not applicant data.
@@ -100,6 +100,25 @@ those tokens are infrastructure access credentials, not applicant data.
 
 `GET /api/agent-guide` returns the provider-neutral worker protocol without resume
 bytes, personal facts or ledger data. It is read-only and does not claim work.
-`/connect` generates origin-specific setup messages for Dots, ChatGPT/Codex and
+`/connect` generates origin-specific MCP-first setup messages for Dots, ChatGPT/Codex and
 Claude. It does not install an integration or verify that a schedule exists.
 See [docs/AGENT-PROTOCOL.md](docs/AGENT-PROTOCOL.md).
+
+## MCP tools
+
+The manifest declares the `mcp` capability. `POST /mcp` implements stateless
+JSON-RPC discovery and tools for protocol 2026-07-28. Protect this endpoint with
+the same owner-private boundary as every other route. Sites provisions a separate
+personal plugin for each published copy. See [MCP integration](docs/MCP-INTEGRATION.md).
+
+Read: `get_handoff`, `get_tracker_state`, `list_jobs`, `get_resume`.
+Write: `claim_batch`, `heartbeat`, `record_jobs`, `finish_batch`, `pause_search`,
+`record_activity`, `record_runner_setup`. Claims, heartbeats and finishes reuse
+`/api/worker`; job writes additionally require its exact workerId/requestId owner.
+Confirmed records retain database deduplication and cap checks.
+
+MCP claim responses omit raw resume/ledger payloads; use get_resume and list_jobs.
+get_handoff reads only the current private database, including supplied applicant
+facts. No personal data is compiled into source. record_runner_setup stores a
+self-reported connection and optional schedule, never a created/verified schedule.
+The existing CLI worker and HTTP API continue to work without MCP.

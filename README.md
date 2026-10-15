@@ -29,7 +29,7 @@ are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 | Option | What is included | Where it runs |
 | --- | --- | --- |
 | ChatGPT / Codex | CLI worker, preflight and recovery | The machine running the worker |
-| ChatGPT Dot | Cloud handoff page and step-by-step API guide | Dot cloud, after private access and tools are verified |
+| ChatGPT Dot | Private MCP server, plugin handoff and step-by-step guide | Dot cloud, after private access and tools are verified |
 | Claude | Claude Code setup and shared API workflow | The authorized Claude/browser environment |
 
 Open **Connect your agent** (`/connect`) to copy a setup message for your own
@@ -157,6 +157,25 @@ Copy this instruction to your LLM:
 > roles, locations, frequency, limits and factual answers. Verify tools before
 > claiming work. Use one worker and docs/AGENT-PROTOCOL.md for authorized batches.
 
+## Private MCP integration
+
+The project now declares MCP and serves `POST /mcp`. Publishing your own
+owner-private Sites copy provisions its own personal dashboard plugin. It reads
+the resume and preferences from that copy’s database at runtime. No applicant
+profile or Site identity is bundled.
+
+Install/connect your dashboard under **Plugins → Personal → Created by you** and
+refresh the agent’s tools. Verify `get_handoff`, `get_tracker_state`, `get_resume`
+and a harmless `record_activity` write before claiming any application batch.
+Use `claim_batch`, `heartbeat`, `record_jobs` and `finish_batch` for execution;
+these retain the existing database ownership, deduplication and cap rules.
+
+Read [MCP connection, tool map and troubleshooting](docs/MCP-INTEGRATION.md). A
+browser block on `/api/...` is a reason to use the supported plugin connection,
+not to make the site public. MCP may require plugin authentication even when a
+service token works on ordinary API routes. Claude users still need a verified
+compatible connection or the documented direct API workflow.
+
 ## Add it to your Dot, step-by-step
 
 1. Publish **your own** copy behind owner-only authentication with its own D1
@@ -164,22 +183,25 @@ Copy this instruction to your LLM:
    [Sites publishing steps](docs/DOTS-WORKFLOW.md#publish-a-private-copy-with-sites).
    Never expose an unauthenticated development server to reach it from the cloud.
 2. Complete the resume and preference setup on that hosted copy.
-3. Open **Connect your agent → ChatGPT Dot** and copy the generated message.
+3. Install/connect this copy’s dashboard plugin, then open **Connect your agent
+   → ChatGPT Dot** and copy the generated message.
 4. Send it to your Dot. Require its own cloud computer/browser, with no use of your
    personal computer and no delegation to Codex or Work tasks.
-5. Complete any sign-in in the Dot's cloud browser. Have it verify authenticated
-   API access, browser actions and resume upload capability before claiming work.
+5. Have it verify the plugin’s handoff, queue and resume tools, plus a harmless
+   activity write. Complete any cloud browser sign-in and verify resume-file
+   handling before claiming work.
 6. If you want background checks, request one Dot cloud queue-check schedule every
    15 minutes in your timezone. Verify its real identifier and next run under
    **Scheduled**. If unsupported, leave it manual or blocked, not falsely connected.
-7. Let it process only queued/due batches through `/api/worker`. Saved manual,
+7. Let it process only queued/due batches through MCP `claim_batch` and its
+   heartbeat/result/finish tools. Saved manual,
    daily or weekly preferences still determine which batches are due.
 8. Review confirmations; use **Apply for more** within your saved limits. To stop,
    pause the dashboard and disable the Dot schedule separately.
 
-The generated prompt is the LLM handoff. It points to the installed copy's
-read-only `/api/agent-guide`, which supplies claim, heartbeat, cap, pause, evidence
-and recovery instructions. No applicant data or credential is embedded in it.
+The generated prompt is the LLM handoff. It points to the installed copy’s
+MCP `get_handoff`, with `/api/agent-guide` as a direct API alternative. Both
+supply claim, heartbeat, cap, pause, evidence and recovery instructions. No applicant data or credential is embedded in it.
 
 This is a guided integration; a real Dot submission run has not been validated by
 this project. A 15-minute poll may show offline between checks because worker
@@ -277,6 +299,7 @@ uncertain applications automatically.
 
 ## Source and customization
 
+- `app/mcp/route.ts` and `lib/mcp-tools.ts`: private MCP transport and typed tools.
 - `app/connect/page.tsx`: provider handoff; `app/api/agent-guide/`: read-only LLM protocol.
 - `app/page.tsx`: dashboard; `components/onboarding.tsx`: guided setup.
 - `lib/profile.ts`: generic display name, initials, export prefix, locale, timezone.
@@ -304,9 +327,9 @@ licenses remain applicable. Build and dependency logs may include upstream warni
 ## Integration limits
 
 This is a single-owner starter, not a multi-user hosted product. Dot and Claude
-paths are documented API workflows, not native provider plugins or bundled daemons. There is no
-ChatGPT plugin, OAuth provider, remote MCP server, or automatic access to an
-owner's ChatGPT apps. Being signed into ChatGPT in a browser does not connect this
+paths use the private MCP server or documented HTTP protocol, with no bundled
+provider daemon. Sites provisions a personal plugin per copy; this repository
+does not implement OAuth or automatic access to an owner’s connected apps. Being signed into ChatGPT in a browser does not connect this
 app to Codex. The CLI worker requires its own configured login and tools. Employer
 websites vary, and successful automation is never guaranteed. Review blockers and
 confirmation evidence rather than treating every attempted submission as success.

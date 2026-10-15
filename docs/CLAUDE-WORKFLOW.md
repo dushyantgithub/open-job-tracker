@@ -1,7 +1,9 @@
 # Install and use with Claude
 
 Claude uses the same private queue API. This release provides a guided Claude
-Code workflow, not a Claude daemon, remote MCP server or automatic Claude login.
+Code workflow plus an MCP server, not a Claude daemon or automatic Claude login.
+The [MCP guide](MCP-INTEGRATION.md) explains its tool mapping and authentication
+limits. Sites’ personal-plugin authentication is not assumed to work in Claude.
 The end-to-end employer workflow has not been tested with a Claude account.
 Do not rename or start `scripts/codex-worker.mjs` to run Claude: it invokes Codex.
 

@@ -1,7 +1,7 @@
 # Use a ChatGPT Dot in the cloud
 
-This is a guided connection through the existing private API, not a native Dot
-plugin or a bundled Dot runner. No personal computer is needed for execution
+This release includes a private MCP server. Sites can provision a personal
+dashboard plugin for each published copy; there is no bundled Dot runner. No personal computer is needed for execution
 once a working private cloud deployment and Dot schedule are actually configured.
 The full employer-submission workflow has not been tested with a Dot account.
 
@@ -15,11 +15,13 @@ The full employer-submission workflow has not been tested with a Dot account.
 3. Open your hosted copy. Upload your resume, review suggested roles, choose
    locations, frequency and caps, and supply verified **Application facts**.
    **Save and start** queues a batch; it does not connect your Dot.
-4. Open **Connect your agent**, choose **ChatGPT Dot**, and copy the setup message.
+4. Install/connect this copy’s dashboard plugin under **Plugins → Personal →
+   Created by you**. Follow [MCP-INTEGRATION.md](MCP-INTEGRATION.md), then open
+   **Connect your agent**, choose **ChatGPT Dot**, and copy the setup message.
 5. Send it to your Dot. Require its own cloud computer and browser, with no local
    fallback and no delegation to Codex or Work tasks. This is an instruction to
    the Dot, not a technical restriction imposed on your whole ChatGPT account.
-6. Let the Dot verify private API access, its browser tools and resume upload
+6. Let the Dot verify MCP handoff/queue reads, a harmless activity write, browser tools and resume upload
    capability before claiming the queue. A login may require your intervention
    in its cloud browser. Your local browser's login is not shared automatically.
 7. For recurring checks, tell the Dot your timezone and request one cloud-only
@@ -51,10 +53,10 @@ Perform this in an environment with the Sites plugin and repository access:
    return resume data or permit mutations. Verify the deployed database has the
    onboarding and queue migrations, then complete onboarding in that deployment.
 6. Give the Dot the deployed HTTPS URL through **Connect your agent**. Do not
-   paste access tokens into its prompt. If the Dot already has authorized Sites
-   tools, it may obtain a fresh service token in memory and send it only to the
-   exact Site origin in `OAI-Sites-Authorization`. Otherwise arrange a supported
-   private authentication path or report the missing capability.
+   paste access tokens into its prompt. Use Sites `get_site` with `include_mcp_connection: true` for the existing
+   project, then install/connect its returned personal plugin. Read its tool
+   schemas. Do not assume a service token accepted by ordinary API routes can
+   authenticate the MCP gateway; use the supported plugin connection.
 
 Other hosting is possible, but you must configure D1, migrations and an owner-only
 HTTP access boundary yourself. This repository does not provide that gateway.
@@ -62,7 +64,7 @@ A browser session and a shell HTTP request do not automatically share credential
 
 ## Instructions for the Dot / LLM
 
-1. Read `GET /api/agent-guide` at the owner's URL, then
+1. Read MCP `get_handoff` at the owner’s connected dashboard plugin, then
    [AGENT-PROTOCOL.md](AGENT-PROTOCOL.md) and [TRACKER-API.md](../TRACKER-API.md).
 2. State whether you can execute entirely inside your Dot cloud environment.
    If you cannot browse, upload resumes and authenticate API calls there, stop
@@ -71,7 +73,7 @@ A browser session and a shell HTTP request do not automatically share credential
    describe this owner. Resolve essential missing facts with the owner.
 4. Stop any previous worker/schedule, preserve its checkpoint and resolve uncertain
    submissions before claiming with one stable Dot worker identity.
-5. Use `tick`, `heartbeat`, per-result ledger writes and `finish` exactly as the
+5. Use MCP `claim_batch`, `heartbeat`, `record_jobs` and `finish_batch` exactly as the
    shared protocol specifies. A queued or due batch is the unit of authorization.
 6. Save a schedule only when requested, keep its ID privately, and verify it exists.
    Do not report a copied message or successful API read as a completed integration.

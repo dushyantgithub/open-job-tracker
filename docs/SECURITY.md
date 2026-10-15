@@ -8,14 +8,16 @@ the code, not access to any person's private job search.
 
 Run locally on `127.0.0.1` or `localhost`, or place the entire app behind an
 owner-only authentication service. Protect HTML pages, uploads, all `/api/*`
-routes, worker endpoints, logs, and database access. Configure that boundary
+routes, `/mcp`, worker endpoints, logs, and database access. Configure that boundary
 before adding a resume or exposing a network URL. Same-origin, Origin, Fetch
 Metadata, content-type checks, and unguessable URLs are not authentication.
 
 If using a hosting platform's identity headers, trust them only when that
 platform strips spoofed incoming headers and enforces the owner's access policy.
 This starter does not independently verify such headers. The app does not
-implement Sign in with ChatGPT, OAuth, or an MCP authentication flow.
+implement Sign in with ChatGPT or OAuth. The included MCP endpoint relies on
+the hosting platform to authenticate every request; declaring MCP is not an
+authentication boundary. Sites-provisioned plugins use Sites-managed access.
 
 ## Data stored
 
@@ -46,3 +48,16 @@ challenges. Inspect uncertain submissions before retrying to prevent duplicates.
 For a private copy, report issues to its maintainer through a private channel.
 Include a minimal reproduction with fake applicant data. Do not post a resume,
 access token, full database, private run logs, or sensitive screenshots publicly.
+
+## MCP exposure
+
+Publishing a Site with the MCP capability creates an owner’s personal plugin; it
+does not authorize a public audience. Keep each copy owner-private. MCP tools
+expose the resume and preferences at runtime, so do not publicly host `/mcp` or
+connect another person’s plugin. Tool declarations expose no applicant data.
+
+Read tools never claim work. claim_batch is an explicit mutation. record_jobs
+requires the current request’s worker identity and preserves existing database
+limits. The endpoint exposes no arbitrary SQL, URL fetch or generic route proxy.
+record_runner_setup records the agent’s assertion, not an independent capability
+audit. An installed plugin still does not prove employer browser or upload access.
