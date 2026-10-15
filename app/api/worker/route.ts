@@ -9,13 +9,30 @@ export async function POST(request: Request) {
     const db = getRawDb();
     const now = new Date().toISOString();
     if (body.action === "pause") {
-      const current = await activeRequest();
+      const run = { ...await readRun(), status: "paused", message: "Applications paused.", lastAgentUpdate: now, nextCheckAt: null };
       await db.batch([
         settingStatement("schedule", { enabled: false, paused: true, nextRunAt: null }),
-        db.prepare("UPDATE requests SET status=CASE WHEN status='queued' THEN 'cancelled' ELSE 'pausing' END, notes='Paused by the owner.' WHERE status IN ('queued','acknowledged','pausing')"),
-        settingStatement("run", { ...await readRun(), status: current?.status === "acknowledged" ? "pausing" : "paused", message: current?.status === "acknowledged" ? "Pause requested. Waiting for the worker to stop safely." : "Applications paused.", nextCheckAt: null }),
+        // Retain the worker checkpoint and allow it to save proof for a form
+        // already sent. Its acknowledgement is separate from the owner's pause.
+        db.prepare("UPDATE requests SET status=CASE WHEN status='queued' THEN 'cancelled' ELSE 'pausing' END, completed_at=CASE WHEN status='queued' THEN ? ELSE completed_at END WHERE status IN ('queued','acknowledged','pausing')").bind(now),
+        settingStatement("run", run),
       ]);
-      return json({ paused: true });
+      const settling = await activeRequest();
+      return json({ paused: true, run, acknowledgementPending: settling?.status === "pausing", request: settling ? publicRequest(settling) : null });
+    }
+    if (body.action === "confirm_stopped") {
+      if (!body.requestId) return json({ error: "Provide the paused requestId." }, 400);
+      const schedule = await readSetting<Schedule>("schedule");
+      const current = await activeRequest();
+      if (!schedule?.paused || current?.status !== "pausing" || current.id !== body.requestId) return json({ error: "This is not the current paused request. Refresh the dashboard." }, 409);
+      // This is an explicit owner acknowledgement, never inferred from a timeout
+      // or stale heartbeat. Keep the original batch target and all saved evidence.
+      const result = await db.prepare(`UPDATE requests SET status='cancelled', completed_at=?,
+        notes=COALESCE(notes || char(10),'') || 'Owner confirmed the external agent is stopped and saved submissions have been reviewed.'
+        WHERE id=? AND status='pausing' AND EXISTS (SELECT 1 FROM settings WHERE id='schedule' AND json_extract(data,'$.paused')=1)
+        RETURNING *`).bind(now, body.requestId).first<RequestRow>();
+      if (!result) return json({ error: "The request changed. Refresh the dashboard." }, 409);
+      return json({ paused: true, request: publicRequest(result) });
     }
     if (!body.workerId || !/^[a-zA-Z0-9_-]{1,128}$/.test(body.workerId)) return json({ error: "A valid workerId is required." }, 400);
     if (!["tick", "heartbeat", "finish"].includes(body.action || "")) return json({ error: "Unknown worker action." }, 400);
@@ -60,7 +77,11 @@ export async function POST(request: Request) {
     schedule = await readSetting<Schedule>("schedule");
     if (schedule?.paused) return json({ request: publicRequest(claimed), paused: true });
     const run = { ...await readRun(), status: "preparing", target: claimed.target, message: "A worker connected and is preparing this application batch.", lastAgentUpdate: now, nextCheckAt: null };
-    await writeSetting("run", run);
+    const ready = await db.prepare(`INSERT INTO settings(id,data) SELECT 'run', ?
+      WHERE EXISTS (SELECT 1 FROM settings WHERE id='schedule' AND json_extract(data,'$.paused')=0)
+      AND EXISTS (SELECT 1 FROM requests WHERE id=? AND status='acknowledged' AND worker_id=?)
+      ON CONFLICT(id) DO UPDATE SET data=excluded.data RETURNING id`).bind(JSON.stringify(run), claimed.id, body.workerId).first();
+    if (!ready) return json({ request: publicRequest(claimed), paused: true });
     const resume = await readSetting<ResumeData>("resume");
     const rows = await db.prepare("SELECT data FROM jobs ORDER BY updated_at DESC").all<{data: string}>();
     return json({ request: publicRequest(claimed), preferences, resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });

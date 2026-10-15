@@ -75,8 +75,16 @@ skipped, rejected, withdrawn. `skipped` means excluded during eligibility review
 
 `POST /api/worker` accepts one action at a time:
 
-- `pause`: stops scheduling, cancels queued work, and asks a claimed worker to stop.
-  Active work may remain `pausing` until the worker acknowledges it.
+- `pause`: immediately disables scheduling, sets the run to `paused`, cancels
+  queued work, and asks a claimed worker to stop. Its response includes `run`,
+  `acknowledgementPending` and the settling `request`. A claimed request retains
+  `pausing` until the worker acknowledges; this does not delay the visible pause.
+  Existing checkpoint notes and submission proof are preserved.
+- `confirm_stopped` with `requestId`: owner-only recovery after the owner has
+  stopped the external agent and reviewed recent submissions. Requires scheduling
+  paused and that exact current request in `pausing`; releases it as cancelled
+  without changing its saved target, baseline or ledger. Never infer this action
+  from a stale heartbeat. This does not stop an external browser or schedule.
 - `tick` with `workerId`: records a heartbeat and atomically claims an eligible
   queued batch. A claimed response includes the request, preferences, private
   resume and ledger. A null request means no work is available.

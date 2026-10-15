@@ -36,7 +36,7 @@ export async function queueBatch() {
   const resume = await readSetting<ResumeData>("resume");
   if (!preferences || !resume) return { error: "Add a resume and save your preferences first.", status: 409 };
   const existing = await activeRequest();
-  if (existing?.status === "pausing") return { error: "Wait for the worker to finish pausing before starting another run.", status: 409 };
+  if (existing?.status === "pausing") return { error: "The search is paused. Wait for the agent to acknowledge, or confirm it has stopped in the dashboard before resuming.", status: 409 };
   if (existing) return { request: publicRequest(existing), alreadyQueued: true };
   const applied = await appliedTotal();
   if (!remainingBatch(preferences, applied)) return { error: "Your total application limit has been reached. Increase it in preferences to continue.", status: 409 };

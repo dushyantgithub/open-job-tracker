@@ -252,9 +252,12 @@ been end-to-end validated by this project; normal permissions and usage apply.
 - **Export** downloads the currently filtered records as CSV.
 - **Activity log** shows progress and queue events. Only confirmed submissions count
   toward applications sent. Excluded roles and unresolved attempts are separate.
-- **Pause** stops future scheduling and asks active work to stop. Wait until it is
-  paused, then use **Edit setup** to change the search. **Resume search** queues a
-  fresh batch after you review any uncertain submissions.
+- **Pause** immediately disables dashboard scheduling and shows **Paused**. The
+  agent's stop acknowledgement is tracked separately. If you stopped the agent
+  externally, review recent submissions and choose **Agent is stopped, unlock
+  editing**. This preserves saved progress and unlocks **Edit setup** without
+  waiting for an offline agent. Only confirm when the agent has actually stopped.
+  **Resume search** queues a fresh batch after you review any uncertain submissions.
 - **Apply for more** queues up to the saved per-run limit without exceeding the
   remaining total cap. It does not run a browser inside this website.
 
