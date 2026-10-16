@@ -96,3 +96,11 @@ ledger updates, and proof images to decide which submissions were confirmed.
 Then run `npm run worker -- --recover` to import saved updates and mark the
 interrupted batch blocked. Use **Resume search** only after reviewing uncertain
 submissions. Recovery is not an instruction to submit the same application again.
+
+## Choose who clicks Submit
+
+Under **Edit setup → Schedule & limits**, select **Fully automated** or
+**Manual review**. In manual review the agent fills fields, uploads documents and
+hands off the actual prepared form; you review it and click Submit on the employer
+page. New users default to manual review; existing searches keep their mode.
+See [submission modes and browser handoff requirements](SUBMISSION-MODES.md).

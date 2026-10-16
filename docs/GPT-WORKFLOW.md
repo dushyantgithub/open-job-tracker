@@ -82,3 +82,11 @@ tracker does not by itself move a local CLI worker to the cloud.
 Official reference: [Codex CLI installation and account setup](https://learn.chatgpt.com/docs/codex/cli).
 Your own account's usage and tool permissions apply. No API key is required by this
 project when Codex is already signed in using a supported account.
+
+## Choose who clicks Submit
+
+Under **Edit setup → Schedule & limits**, select **Fully automated** or
+**Manual review**. In manual review the agent fills fields, uploads documents and
+hands off the actual prepared form; you review it and click Submit on the employer
+page. New users default to manual review; existing searches keep their mode.
+See [submission modes and browser handoff requirements](SUBMISSION-MODES.md).

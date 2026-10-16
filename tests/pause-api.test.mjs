@@ -42,7 +42,7 @@ test('pause is immediate, preserves in-flight proof, and permits explicit stoppe
     assert.equal((await api('/api/data')).verifiedTotal,0,'fixture must be empty');
     const form=new FormData();form.append('resume',new Blob(['Synthetic backend engineer fixture. Built backend services using Python, Django and PostgreSQL. Led delivery of application APIs and collaborated with product and engineering teams. This resume exists only for isolated API testing.'],{type:'text/plain'}),'fixture.txt');
     assert.equal((await api('/api/onboarding/resume',form)).status,201);
-    const prefs={selectedRoles:['Backend Engineer'],locations:['US'],indiaCities:[],frequency:'manual',batchLimit:3,totalLimit:12,applicantFacts:'Synthetic fixture only.'};
+    const prefs={submissionMode:'automatic',selectedRoles:['Backend Engineer'],locations:['US'],indiaCities:[],frequency:'manual',batchLimit:3,totalLimit:12,applicantFacts:'Synthetic fixture only.'};
     const selectedSources=['LinkedIn','Naukri','Instahyre','Wellfound','Cutshort','Indeed'];
     assert.equal((await api('/api/onboarding',{...prefs,searchPortals:selectedSources})).status,200);
     // Older clients must not erase source preferences when saving other fields.
@@ -100,6 +100,57 @@ test('pause is immediate, preserves in-flight proof, and permits explicit stoppe
     assert.equal(queuedPause.acknowledgementPending,false);assert.equal(queuedPause.request,null);
     assert.equal((await api('/api/onboarding',prefs)).status,200);
     assert.equal((await api('/api/worker',{action:'tick',workerId:'fixture-worker'})).request,null);
+    // Prepare-only mode never lets a worker claim a new employer submission.
+    const manualPrefs={...prefs,submissionMode:'manual_review',batchLimit:2};
+    assert.equal((await api('/api/onboarding',manualPrefs)).status,200);
+    assert.equal((await api('/api/onboarding/start',{})).status,201);
+    const manual=await api('/api/worker',{action:'tick',workerId:'manual-worker'});
+    assert.match(manual.submissionInstructions,/must NEVER click Submit/);
+    const review={requestId:manual.request.id,preparedAt:new Date(Date.now()-60_000).toISOString(),expiresAt:new Date(Date.now()+3600_000).toISOString(),method:'same_browser',instructions:'Synthetic prepared tab. Do not open a real employer.',fieldsComplete:true,uploadsComplete:true,uploadedFiles:['fixture.txt'],summary:'Synthetic fields and upload verified.'};
+    const draft={id:'review-one',company:'Synthetic Review',title:'Backend Engineer',jobUrl:'https://example.invalid/jobs/review-one',resumeUsed:'fixture.txt',fitSummary:'Synthetic role fit.',status:'ready_for_review',review};
+    assert.equal((await api('/api/jobs',{...draft,review:{...review,uploadsComplete:false}})).status,400);
+    assert.equal((await api('/api/jobs',draft)).status,200);
+    assert.equal((await api('/api/jobs',{...draft,id:'duplicate-draft'})).status,400);
+    assert.equal((await api('/api/jobs',{id:draft.id,status:'applied',appliedAt:new Date().toISOString(),confirmation:'Agent cannot attest owner submission'})).status,400);
+    assert.equal((await api('/api/jobs',{id:draft.id,userSubmittedAt:new Date().toISOString()})).status,400);
+    assert.equal((await api('/api/review',{id:draft.id,action:'record_submission',confirmedByUser:true,appliedAt:new Date().toISOString(),confirmation:'Receipt before handoff'})).status,409);
+    const draftTwo={...draft,id:'review-two',jobUrl:'https://example.invalid/jobs/review-two'};
+    assert.equal((await api('/api/jobs',draftTwo)).status,200);
+    assert.equal((await api('/api/jobs',{...draft,id:'review-three',jobUrl:'https://example.invalid/jobs/review-three'})).status,400,'prepared capacity is bounded');
+    const waiting=await api('/api/worker',{action:'finish',workerId:'manual-worker',requestId:manual.request.id,status:'awaiting_review'});
+    assert.equal(waiting.status,200);assert.equal(waiting.awaitingReview,true);
+    assert.equal((await api('/api/data')).verifiedTotal,1,'drafts are never applications');
+    assert.equal((await api('/api/worker',{action:'heartbeat',workerId:'manual-worker',requestId:manual.request.id})).paused,true);
+    assert.equal((await api('/api/worker',{action:'tick',workerId:'other-worker'})).request,null);
+    assert.equal((await api('/api/jobs',{id:draft.id,notes:'Do not change a handed-off form'})).status,400);
+    assert.equal((await api('/api/more',{})).alreadyQueued,true);
+    assert.equal((await api('/api/onboarding')).schedule.enabled,false,'more must not restart while owner reviews');
+    assert.equal((await api('/api/review',{id:draft.id,action:'record_submission',confirmedByUser:true,appliedAt:new Date().toISOString()})).status,400,'receipt required');
+    const receipt={action:'record_submission',confirmedByUser:true,appliedAt:new Date().toISOString(),confirmation:'Synthetic owner-observed receipt; no employer contacted.'};
+    assert.equal((await api('/api/review',{...receipt,id:draft.id})).status,200);
+    assert.equal((await api('/api/data')).verifiedTotal,2);
+    assert.equal((await api('/api/review',{...receipt,id:draft.id})).alreadyRecorded,true,'idempotent owner save');
+    assert.equal((await api('/api/review',{...receipt,id:draftTwo.id})).status,200);
+    assert.equal((await api('/api/data')).run.status,'completed');
+    assert.equal((await api('/api/data')).verifiedTotal,3);
+    // A partial preparation batch can be reviewed and discarded without fake completion.
+    assert.equal((await api('/api/onboarding/start',{})).status,201);
+    const partial=await api('/api/worker',{action:'tick',workerId:'manual-worker'});
+    assert.equal((await api('/api/jobs',{...draft,id:'review-partial',jobUrl:'https://example.invalid/jobs/partial',review:{...review,requestId:partial.request.id}})).status,200);
+    assert.equal((await api('/api/worker',{action:'finish',workerId:'manual-worker',requestId:partial.request.id,status:'awaiting_review'})).status,200);
+    assert.equal((await api('/api/review',{id:'review-partial',action:'discard'})).status,200);
+    assert.equal((await api('/api/data')).run.status,'blocked');
+    assert.equal((await api('/api/data')).verifiedTotal,3);
+
+    assert.equal((await api('/api/onboarding/start',{})).status,201);
+    const pausedReview=await api('/api/worker',{action:'tick',workerId:'manual-worker'});
+    assert.equal((await api('/api/jobs',{...draft,id:'review-paused',jobUrl:'https://example.invalid/jobs/paused',review:{...review,requestId:pausedReview.request.id}})).status,200);
+    assert.equal((await api('/api/worker',{action:'finish',workerId:'manual-worker',requestId:pausedReview.request.id,status:'awaiting_review'})).status,200);
+    assert.equal((await api('/api/worker',{action:'pause'})).run.status,'paused');
+    assert.equal((await api('/api/worker',{action:'confirm_stopped',requestId:pausedReview.request.id})).status,409,'keep pending review reservations');
+    assert.equal((await api('/api/review',{id:'review-paused',action:'discard'})).status,200);
+    assert.equal((await api('/api/data')).run.status,'paused');
+
   } finally {
     if(child&&child.exitCode===null){child.kill('SIGTERM');await new Promise(r=>child.once('close',r));}
     await rm(directory,{recursive:true,force:true});

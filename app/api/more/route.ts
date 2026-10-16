@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const result = await queueBatch();
     if ("error" in result) return json({ error: result.error }, result.status);
-    await writeSetting("schedule", { enabled: true, paused: false, nextRunAt: null });
+    if (!result.alreadyQueued) await writeSetting("schedule", { enabled: true, paused: false, nextRunAt: null });
     return json({ ...result, message: "Queued within your saved per-run and total limits. Waiting for a connected worker." }, result.alreadyQueued ? 200 : 201);
   } catch (error) { return failure(error); }
 }

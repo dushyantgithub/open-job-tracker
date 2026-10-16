@@ -83,3 +83,13 @@ nominally or confuse total compensation with base pay. When salary is not listed
 consider the job only if `applyWithoutSalary` is true. Ambiguous published pay
 requires review rather than treating it as undisclosed. Record actual advertised
 pay and the assessment; never invent amounts or quietly lower a saved minimum.
+
+## Submission mode is authoritative
+
+Read `submissionInstructions` on every handoff/claim. For manual_review, never
+submit, never call `/api/review`, and never record a new applied status. Fill and
+upload only after verifying an owner-accessible handoff, record ready_for_review
+with complete review metadata, and finish awaiting_review. Do not label a posting
+link or screenshot as a preserved form. For automatic, follow the shared site
+policy, verification, deduplication and uncertainty precautions. Limits are ceilings.
+See [the full submission protocol](SUBMISSION-MODES.md).

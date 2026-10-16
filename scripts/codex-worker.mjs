@@ -80,7 +80,8 @@ async function processBatch(payload) {
   await write('search-plan.json', JSON.stringify(preferences, null, 2));
   await write('existing-jobs.json', JSON.stringify(jobs, null, 2));
   await write('application-updates.jsonl', '');
-  await write('result-schema.json', JSON.stringify({ type: 'object', properties: { status: { type: 'string', enum: ['completed', 'partial', 'blocked'] }, message: { type: 'string' } }, required: ['status', 'message'], additionalProperties: false }));
+  await write('submission-instructions.txt', payload.submissionInstructions || 'Read the current dashboard handoff submissionInstructions before continuing. Do not assume automated submission is allowed.');
+  await write('result-schema.json', JSON.stringify({ type: 'object', properties: { status: { type: 'string', enum: ['completed', 'awaiting_review', 'partial', 'blocked'] }, message: { type: 'string' } }, required: ['status', 'message'], additionalProperties: false }));
   const log = await fs.open(path.join(runDir, 'codex-events.jsonl'), 'a', 0o600);
   const resultPath = path.join(runDir, 'result.json');
   const agentEnv = { ...process.env };
@@ -127,7 +128,7 @@ async function processBatch(payload) {
   try { result = JSON.parse(await fs.readFile(resultPath, 'utf8')); } catch {}
   const current = await api('/api/data');
   const verified = current.verifiedTotal ?? current.jobs.filter(job => job.appliedAt && job.confirmation).length;
-  const status = !syncError && !paused && !stopping && verified >= request.target ? 'completed' : 'blocked';
+  const status = !syncError && !paused && !stopping && verified >= request.target ? 'completed' : !syncError && !paused && !stopping && exitCode === 0 && payload.preferences.submissionMode === 'manual_review' && result.status === 'awaiting_review' ? 'awaiting_review' : 'blocked';
   const message = syncError ? `Progress sync failed: ${syncError.message}. Review this run before resuming.` : paused ? 'Paused by the user. Review any in-progress submission before resuming.' : stopping ? 'Worker stopped. Review any in-progress submission before resuming.' : exitCode !== 0 ? `Codex stopped before completing the batch. ${result.message}` : result.message;
   await api('/api/worker', { action: 'finish', workerId, requestId: request.id, status, message });
   await fs.unlink(path.join(privateRoot, 'active-request.json')).catch(() => {});

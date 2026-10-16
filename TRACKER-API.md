@@ -158,3 +158,30 @@ get_handoff reads only the current private database, including supplied applican
 facts. No personal data is compiled into source. record_runner_setup stores a
 self-reported connection and optional schedule, never a created/verified schedule.
 The existing CLI worker and HTTP API continue to work without MCP.
+
+## Submission modes and prepared reviews
+
+`preferences.submissionMode` is `automatic` or `manual_review`. A new copy's first
+preferences save defaults to manual_review. Omitted fields on existing copies
+preserve the saved mode, with automatic as the legacy fallback. `submissionInstructions`
+is returned by handoff and worker claim. Agents must follow it before employer actions.
+
+A `ready_for_review` job requires jobUrl, resumeUsed, fitSummary and review:
+`{requestId,preparedAt,expiresAt,method,instructions,summary,fieldsComplete:true,uploadsComplete:true,uploadedFiles:[filenames],handoffUrl?}`.
+Method is same_browser, saved_draft or remote_takeover. The latter two require an
+authenticated credential-free HTTPS handoff URL with no query or fragment. Ready
+records reserve capacity against the current request target and total cap. The
+worker cannot mutate drafts after handing the batch to the owner.
+
+`finish_batch` and worker finish accept `awaiting_review` for manual mode with
+non-expired ready records. The request remains acknowledged to reserve its unique
+active slot; run.status becomes awaiting_review and recurrence is disabled.
+Heartbeat returns paused:true to stop the worker while the owner reviews. New
+claims and additional batches wait. No migration or reset is required.
+
+Owner UI only: POST `/api/review` with `{id,action:"record_submission",confirmedByUser:true,appliedAt,confirmation}`
+records an actual owner-reported receipt; action `discard` skips a draft. Not an
+MCP tool and prohibited to agents. It cannot submit an employer form. Pending
+review receipts may be resolved while paused before releasing the checkpoint.
+The target must be met to complete; resolving a partial set below target pauses
+for attention. See docs/SUBMISSION-MODES.md for boundaries and capabilities.

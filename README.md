@@ -340,3 +340,11 @@ does not implement OAuth or automatic access to an owner’s connected apps. Bei
 app to Codex. The CLI worker requires its own configured login and tools. Employer
 websites vary, and successful automation is never guaranteed. Review blockers and
 confirmation evidence rather than treating every attempted submission as success.
+
+## Choose who clicks Submit
+
+Under **Edit setup → Schedule & limits**, select **Fully automated** or
+**Manual review**. In manual review the agent fills fields, uploads documents and
+hands off the actual prepared form; you review it and click Submit on the employer
+page. New users default to manual review; existing searches keep their mode.
+See [submission modes and browser handoff requirements](docs/SUBMISSION-MODES.md).

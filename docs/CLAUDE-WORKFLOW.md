@@ -98,3 +98,11 @@ local or use the Dot route. Do not promise cloud-only operation without testing 
 
 Provider documentation checked 14 October 2026. Installation, eligible accounts
 and browser features may change; the linked official documentation takes priority.
+
+## Choose who clicks Submit
+
+Under **Edit setup → Schedule & limits**, select **Fully automated** or
+**Manual review**. In manual review the agent fills fields, uploads documents and
+hands off the actual prepared form; you review it and click Submit on the employer
+page. New users default to manual review; existing searches keep their mode.
+See [submission modes and browser handoff requirements](SUBMISSION-MODES.md).

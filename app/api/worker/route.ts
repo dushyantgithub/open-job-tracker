@@ -1,3 +1,4 @@
+import { submissionMode, submissionInstructions } from "@/lib/submission-policy";
 import { salarySearchInstructions } from "@/lib/salary-preferences";
 import { sourceSearchInstructions } from "@/lib/job-sources";
 import { getRawDb } from "@/db";
@@ -27,6 +28,8 @@ export async function POST(request: Request) {
       const schedule = await readSetting<Schedule>("schedule");
       const current = await activeRequest();
       if (!schedule?.paused || current?.status !== "pausing" || current.id !== body.requestId) return json({ error: "This is not the current paused request. Refresh the dashboard." }, 409);
+      const pendingReviews=await db.prepare("SELECT COUNT(*) n FROM jobs WHERE status='ready_for_review' AND json_extract(data,'$.review.requestId')=?").bind(current.id).first<{n:number}>();
+      if(pendingReviews?.n)return json({error:"Review or discard the prepared applications first so their submission receipts and reserved capacity are not lost."},409);
       // This is an explicit owner acknowledgement, never inferred from a timeout
       // or stale heartbeat. Keep the original batch target and all saved evidence.
       const result = await db.prepare(`UPDATE requests SET status='cancelled', completed_at=?,
@@ -43,13 +46,26 @@ export async function POST(request: Request) {
     if (body.action === "heartbeat") {
       const current = await activeRequest();
       const owns = Boolean(current && current.id === body.requestId && current.worker_id === body.workerId);
-      return json({ paused: Boolean(schedule?.paused || (body.requestId && !owns)), requestStatus: owns ? current?.status : null });
+      return json({ paused: Boolean(schedule?.paused || (await readRun()).status === "awaiting_review" || (body.requestId && !owns)), requestStatus: owns ? current?.status : null });
     }
     if (body.action === "finish") {
-      if (!body.requestId || !["completed", "blocked"].includes(body.status || "")) return json({ error: "Provide requestId and completed or blocked status." }, 400);
+      if (!body.requestId || !["completed", "blocked", "awaiting_review"].includes(body.status || "")) return json({ error: "Provide requestId and completed, blocked or awaiting_review status." }, 400);
       const row = await db.prepare("SELECT * FROM requests WHERE id=? AND worker_id=?").bind(body.requestId, body.workerId).first<RequestRow>();
       if (!row) return json({ error: "The worker does not own this request." }, 409);
       if (!["acknowledged", "pausing"].includes(row.status)) return json({ request: publicRequest(row), alreadyFinished: true });
+      if(body.status==="awaiting_review" && row.status!=="pausing"){
+        const preferences=await readSetting<Preferences>("preferences");
+        const ready=await db.prepare("SELECT COUNT(*) n FROM jobs WHERE status='ready_for_review' AND json_extract(data,'$.review.requestId')=? AND json_extract(data,'$.review.expiresAt')>?").bind(row.id,now).first<{n:number}>();
+        if(submissionMode(preferences)!=="manual_review"||!ready?.n)return json({error:"No current prepared applications are available for manual review."},409);
+        const message="Applications are prepared. Review the original forms and submit them yourself. No new batch will start while review is pending.";
+        const handed=await db.batch([
+          db.prepare("INSERT INTO settings(id,data) SELECT 'run',? WHERE EXISTS(SELECT 1 FROM requests WHERE id=? AND status='acknowledged') AND EXISTS(SELECT 1 FROM settings WHERE id='schedule' AND json_extract(data,'$.paused')=0) ON CONFLICT(id) DO UPDATE SET data=excluded.data RETURNING id").bind(JSON.stringify({...await readRun(),status:"awaiting_review",message,lastAgentUpdate:now,nextCheckAt:null}),row.id),
+          db.prepare("INSERT INTO settings(id,data) SELECT 'schedule',? WHERE EXISTS(SELECT 1 FROM settings WHERE id='run' AND json_extract(data,'$.status')='awaiting_review') AND EXISTS(SELECT 1 FROM requests WHERE id=? AND status='acknowledged') ON CONFLICT(id) DO UPDATE SET data=excluded.data").bind(JSON.stringify({enabled:false,paused:false,nextRunAt:null}),row.id),
+          db.prepare("UPDATE requests SET notes=? WHERE id=? AND status='acknowledged'").bind(message,row.id)
+        ]);
+        if(!handed[0].results.length)return json({error:"The search was paused before handoff. Acknowledge the pause and preserve prepared forms."},409);
+        return json({awaitingReview:true,prepared:ready.n,request:publicRequest(row)});
+      }
       const applied = await appliedTotal();
       if (body.status === "completed" && applied < row.target && row.status !== "pausing") return json({ error: `Only ${applied} applications are verified; the request target is ${row.target}.` }, 409);
       const preferences = await readSetting<Preferences>("preferences");
@@ -86,6 +102,6 @@ export async function POST(request: Request) {
     if (!ready) return json({ request: publicRequest(claimed), paused: true });
     const resume = await readSetting<ResumeData>("resume");
     const rows = await db.prepare("SELECT data FROM jobs ORDER BY updated_at DESC").all<{data: string}>();
-    return json({ request: publicRequest(claimed), preferences, searchInstructions: sourceSearchInstructions(preferences.searchPortals), salaryInstructions: salarySearchInstructions(preferences), resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });
+    return json({ request: publicRequest(claimed), preferences, submissionInstructions:submissionInstructions(preferences), searchInstructions: sourceSearchInstructions(preferences.searchPortals), salaryInstructions: salarySearchInstructions(preferences), resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });
   } catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON." }, 400); return failure(error); }
 }

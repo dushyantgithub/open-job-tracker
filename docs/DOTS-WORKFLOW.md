@@ -91,3 +91,11 @@ account before recurring work. Official documentation checked 14 October 2026:
 - [Dot computers and sign-in](https://learn.chatgpt.com/docs/dots/computers-and-apps)
 - [Dot schedules and context](https://learn.chatgpt.com/docs/dots/tasks-and-memory)
 - [Dot access and usage](https://learn.chatgpt.com/docs/dots)
+
+## Choose who clicks Submit
+
+Under **Edit setup → Schedule & limits**, select **Fully automated** or
+**Manual review**. In manual review the agent fills fields, uploads documents and
+hands off the actual prepared form; you review it and click Submit on the employer
+page. New users default to manual review; existing searches keep their mode.
+See [submission modes and browser handoff requirements](SUBMISSION-MODES.md).

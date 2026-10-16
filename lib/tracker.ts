@@ -1,3 +1,4 @@
+import type { ApplicationReview } from "./submission-policy";
 export const regionOptions = [
   { value: "EU", label: "European Union" },
   { value: "US", label: "United States" },
@@ -23,9 +24,10 @@ export function matchesIndiaCity(location: string | undefined, city = "all"): bo
   if (city === "Bengaluru") return /\b(bangalore|bengaluru)\b/i.test(value);
   return indiaCities.some(option => option.value === city) && value.toLowerCase().split(/[^a-z]+/).includes(city.toLowerCase());
 }
-export const statuses = ["discovered", "shortlisted", "preparing", "applied", "blocked", "skipped", "rejected", "withdrawn"] as const;
+export const statuses = ["discovered", "shortlisted", "preparing", "ready_for_review", "applied", "blocked", "skipped", "rejected", "withdrawn"] as const;
 export type JobStatus = typeof statuses[number];
 export interface Job {
+  review?: ApplicationReview; userSubmittedAt?: string;
   id: string; company: string; title: string; status: JobStatus; portal?: string; discoverySource?: string; discoveryUrl?: string; discoveredAt?: string; appliedAt?: string | null; resumeUsed?: string; coverLetterUsed?: string;
   salaryExpectation?: string; advertisedSalary?: string; salaryMin?: number | null; salaryMax?: number | null; currency?: string;
   country?: string; region?: JobRegion; location?: string; workMode?: string; visaRequired?: boolean; visaSupport?: "confirmed" | "not stated" | "unavailable";
