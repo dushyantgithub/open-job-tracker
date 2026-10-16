@@ -23,6 +23,8 @@ are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 - Tracks verified applications, research, exclusions, blockers, salary details,
   sponsorship information, resume versions, and confirmation evidence.
 - Supports search, sorting, filters, detail drawers, live updates, and CSV export.
+- Saves selected search portals, including LinkedIn, Naukri, Instahyre, Wellfound, Cutshort and Indeed. The agent must check each selected source and log checked, no-match or blocked outcomes.
+- Tracks the first discovery source, listing URL and time separately from the application portal. Historical unknown sources stay Not recorded.
 
 ## Choose your agent
 
@@ -90,8 +92,8 @@ working database with another user's data or a demo seed.
 
 1. Upload your own resume. Scanned image PDFs may need a Markdown or TXT version.
 2. Review the suggested role types. Remove weak matches and add suitable roles.
-3. Choose locations and, if India is selected, at least one supported city.
-4. Set a frequency and application caps. The total cap must be at least the per-run
+3. Choose locations and, if India is selected, at least one supported city. Select search portals in the same step. Each source requires access in the selected agent environment; selection does not create an account or verify browser access.
+4. Set a frequency, application caps and annual salary minimums by region. Choose the currency and base salary or total compensation/CTC for each region; INR amounts are entered in lakh per year. Leave a minimum blank when none is required. Use **Apply when salary is not listed** to include or exclude undisclosed salaries. The total cap must be at least the per-run
    limit. Defaults are examples for a new private setup, not an instruction to apply.
 5. Choose **Save and start**. The dashboard shows the request as queued until an
    authorized worker picks it up.
@@ -249,7 +251,9 @@ been end-to-end validated by this project; normal permissions and usage apply.
 - Choose a status tab, search a company/role/location, or use filters to narrow the
   table. These controls change the view, not saved search preferences.
 - Click a column heading to sort, or a role to open the complete application record.
-- **Export** downloads the currently filtered records as CSV.
+- **Edit setup → Schedule & limits** lets you change minimum salaries for EU, US, India, Australia and Canada, along with the undisclosed-salary checkbox. **Save changes** saves without queuing applications. **Save and start** also queues a run.
+- **Discovered on** shows the original source. Filter or sort by it, then open a role for the original listing link and discovery time. **Applied through** remains the application system.
+- **Export** downloads the currently filtered records as CSV, including discovery source, URL and time.
 - **Activity log** shows progress and queue events. Only confirmed submissions count
   toward applications sent. Excluded roles and unresolved attempts are separate.
 - **Pause** immediately disables dashboard scheduling and shows **Paused**. The

@@ -27,16 +27,24 @@ Preferences:
 ```json
 {
   "selectedRoles": ["Software Engineer"],
+  "searchPortals": ["Company careers", "LinkedIn", "Naukri", "Instahyre", "Wellfound", "Cutshort", "Indeed"],
   "locations": ["US"],
   "indiaCities": [],
   "frequency": "manual",
   "batchLimit": 5,
   "totalLimit": 20,
+  "salaryRules": {"US": {"minimum": null, "currency": "USD", "basis": "base"}},
+  "applyWithoutSalary": true,
   "applicantFacts": ""
 }
 ```
 
 This is only a schema example, not a seeded profile. Locations accept EU/US/IN/AU/CA.
+`searchPortals` accepts the labels in `lib/job-sources.ts`, requires at least one
+selection when supplied, and preserves saved selections if omitted by an older
+client. New copies default to the original company/YC/ATS sources; the owner can
+add the general job portals in setup.
+
 India requires one or more of Bengaluru/Pune/Mumbai; the UI labels Bengaluru as
 Bangalore / Bengaluru. Frequency accepts manual/daily/weekly. Batch limits are
 1-100; total limits are 1-1,000 and must cover the batch size and existing verified
@@ -44,6 +52,18 @@ submissions. No citizenship, language, salary, or work-authorization facts are
 implied by these settings. Optional `applicantFacts` is a plain-text field up to
 8,000 characters. It is passed to the worker with the search plan; keep it factual
 and do not assume the worker can access unrelated chat history.
+
+`salaryRules` maps EU/US/IN/AU/CA to `{minimum, currency, basis}`. Amounts are
+annual currency units, not lakh units: the UI converts INR lakh to rupees. A null
+minimum means no numerical floor. Supported currencies are EUR/USD/INR/AUD/CAD;
+basis is `base` or `total` (annual total compensation/CTC). Structured salary
+rules override older salary text in applicantFacts. `applyWithoutSalary` is a
+boolean, default true for compatibility; false tells the agent to skip listings
+without salary figures. Listed ranges wholly below the minimum remain excluded.
+Unclear currencies/bases require review, not guessed comparisons. Omitting these
+fields when an older client saves preferences preserves existing saved settings.
+Salary instructions are returned in MCP handoff and worker claims. They guide the
+external agent; the tracker does not independently read employer salary pages.
 
 ## Ledger and queue
 
@@ -62,6 +82,14 @@ and do not assume the worker can access unrelated chat history.
 - `GET /api/requests`: queue history, newest first.
 - `POST /api/requests`: legacy request updates; prefer the worker protocol so run
   ownership, completion checks, and scheduling stay consistent.
+
+Discovery fields: `discoverySource` is the first observed source label (up to 100
+characters), `discoveryUrl` is its HTTP(S) listing/search URL without embedded
+credentials, and `discoveredAt` is the observed ISO date/time. Existing first
+discovery values cannot be replaced by following an application link. Missing
+history may be backfilled only from evidence, never inferred from `portal` or
+`jobUrl`. Discovery fields are optional for historical/partial records and never
+block saving a genuine receipt just because the original source is unknown.
 
 Job fields are defined in `lib/tracker.ts`. Core fields include posting/company
 URLs, title, location, region, portal, status, resume version, salary information,
@@ -87,7 +115,7 @@ skipped, rejected, withdrawn. `skipped` means excluded during eligibility review
   from a stale heartbeat. This does not stop an external browser or schedule.
 - `tick` with `workerId`: records a heartbeat and atomically claims an eligible
   queued batch. A claimed response includes the request, preferences, private
-  resume and ledger. A null request means no work is available.
+  resume, source-search instructions and ledger. A null request means no work is available.
 - `heartbeat` with `workerId` and `requestId`: reports whether the worker should
   pause. Only the worker owning the request should execute it.
 - `finish` with `workerId`, `requestId`, `status` (completed/blocked), and `message`:

@@ -1,3 +1,5 @@
+import { salarySearchInstructions } from "@/lib/salary-preferences";
+import { sourceSearchInstructions } from "@/lib/job-sources";
 import { getRawDb } from "@/db";
 import { authorize, failure, json, readRun } from "@/lib/server";
 import { nextScheduledAt, type Preferences } from "@/lib/onboarding-core";
@@ -84,6 +86,6 @@ export async function POST(request: Request) {
     if (!ready) return json({ request: publicRequest(claimed), paused: true });
     const resume = await readSetting<ResumeData>("resume");
     const rows = await db.prepare("SELECT data FROM jobs ORDER BY updated_at DESC").all<{data: string}>();
-    return json({ request: publicRequest(claimed), preferences, resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });
+    return json({ request: publicRequest(claimed), preferences, searchInstructions: sourceSearchInstructions(preferences.searchPortals), salaryInstructions: salarySearchInstructions(preferences), resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });
   } catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON." }, 400); return failure(error); }
 }

@@ -26,7 +26,7 @@ export function matchesIndiaCity(location: string | undefined, city = "all"): bo
 export const statuses = ["discovered", "shortlisted", "preparing", "applied", "blocked", "skipped", "rejected", "withdrawn"] as const;
 export type JobStatus = typeof statuses[number];
 export interface Job {
-  id: string; company: string; title: string; status: JobStatus; portal?: string; appliedAt?: string | null; resumeUsed?: string; coverLetterUsed?: string;
+  id: string; company: string; title: string; status: JobStatus; portal?: string; discoverySource?: string; discoveryUrl?: string; discoveredAt?: string; appliedAt?: string | null; resumeUsed?: string; coverLetterUsed?: string;
   salaryExpectation?: string; advertisedSalary?: string; salaryMin?: number | null; salaryMax?: number | null; currency?: string;
   country?: string; region?: JobRegion; location?: string; workMode?: string; visaRequired?: boolean; visaSupport?: "confirmed" | "not stated" | "unavailable";
   visaEvidence?: string; visaEvidenceUrl?: string; language?: string; jobUrl?: string; companyUrl?: string; companySummary?: string; notes?: string;

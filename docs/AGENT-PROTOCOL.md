@@ -56,3 +56,30 @@ the observed ledger reaches the saved target:
 For a blocker use `status: "blocked"` and a factual reason. For a user-requested
 pause send `{"action":"pause"}` and have the owning worker stop and finish.
 The browser is a separate capability; API access alone never submits forms.
+
+## Search source coverage and first discovery
+
+Before each authorized batch, read current `preferences.searchPortals` and the
+handoff `searchInstructions`. Check every selected source using the selected
+roles/locations before concentrating on one portal. Record a factual Activity log
+note for each: request ID, portal, check time, search URL and outcome (checked,
+no matching roles, or blocked with reason). Never count a login wall or CAPTCHA
+as a completed search, and never silently skip a selected portal.
+
+Save `discoverySource`, `discoveryUrl` and `discoveredAt` when a role is first
+found. Keep them when following a company application link. `portal` describes
+where the application is submitted. Deduplicate across sources and preserve
+first discovery. Leave unknown historical sources unrecorded rather than guess.
+
+## Salary rules
+
+Read `preferences.salaryRules`, `preferences.applyWithoutSalary` and the handoff
+`salaryInstructions` every batch. Structured regional minima override old salary
+text in applicant facts. Compare annual amounts in the saved currency and
+base/total basis. Exclude a published range wholly below the floor; an overlapping
+range requires an expectation at least as high as the minimum. Verify and record
+a current exchange rate when conversion is required. Do not compare currencies
+nominally or confuse total compensation with base pay. When salary is not listed,
+consider the job only if `applyWithoutSalary` is true. Ambiguous published pay
+requires review rather than treating it as undisclosed. Record actual advertised
+pay and the assessment; never invent amounts or quietly lower a saved minimum.

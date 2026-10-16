@@ -1,7 +1,12 @@
+import { validateSalaryRules, type SalaryRules } from "./salary-preferences.ts";
+import { defaultSearchPortals, searchPortalOptions } from "./job-sources.ts";
 export const allowedLocations = ["EU", "US", "IN", "AU", "CA"] as const;
 export const allowedIndiaCities = ["Bengaluru", "Pune", "Mumbai"] as const;
 export interface Preferences {
   applicantFacts?: string;
+  searchPortals?: string[];
+  salaryRules?: SalaryRules;
+  applyWithoutSalary?: boolean;
   selectedRoles: string[];
   locations: typeof allowedLocations[number][];
   indiaCities: typeof allowedIndiaCities[number][];
@@ -19,7 +24,12 @@ export function validatePreferences(value: unknown): Preferences {
     return [...new Set(input.map(x => (x as string).trim()))];
   };
   if (v.applicantFacts !== undefined && (typeof v.applicantFacts !== "string" || v.applicantFacts.length > 8000)) throw new InputError("Applicant facts must be text of at most 8000 characters.");
+  if (v.applyWithoutSalary !== undefined && typeof v.applyWithoutSalary !== "boolean") throw new InputError("Choose whether jobs without a salary can be considered.");
+  let salaryRules: SalaryRules | undefined;
+  if(v.salaryRules !== undefined) { try { salaryRules=validateSalaryRules(v.salaryRules); } catch(error) { throw new InputError(error instanceof Error?error.message:"Invalid salary preferences."); } }
   const applicantFacts = typeof v.applicantFacts === "string" ? v.applicantFacts.trim() : "";
+  const searchPortals = v.searchPortals === undefined ? [...defaultSearchPortals] : strings("searchPortals", searchPortalOptions.length);
+  if (!searchPortals.length || searchPortals.some(portal => !(searchPortalOptions as readonly string[]).includes(portal))) throw new InputError("Choose at least one supported search portal.");
   const roles = strings("selectedRoles", 10);
   const locations = strings("locations", 5);
   const indiaCities = strings("indiaCities", 3).map(x => x === "Bangalore" ? "Bengaluru" : x);
@@ -30,7 +40,7 @@ export function validatePreferences(value: unknown): Preferences {
   if (!Number.isInteger(v.batchLimit) || Number(v.batchLimit) < 1 || Number(v.batchLimit) > 100) throw new InputError("Applications per run must be between 1 and 100.");
   if (!Number.isInteger(v.totalLimit) || Number(v.totalLimit) < 1 || Number(v.totalLimit) > 1000) throw new InputError("Total applications must be between 1 and 1000.");
   if (Number(v.batchLimit) > Number(v.totalLimit)) throw new InputError("Applications per run cannot exceed the total limit.");
-  return { applicantFacts, selectedRoles: roles, locations: locations as Preferences["locations"], indiaCities: [...new Set(indiaCities)] as Preferences["indiaCities"], frequency: v.frequency as Preferences["frequency"], batchLimit: Number(v.batchLimit), totalLimit: Number(v.totalLimit) };
+  return { applicantFacts, searchPortals, ...(salaryRules ? {salaryRules} : {}), applyWithoutSalary: v.applyWithoutSalary === undefined ? true : v.applyWithoutSalary as boolean, selectedRoles: roles, locations: locations as Preferences["locations"], indiaCities: [...new Set(indiaCities)] as Preferences["indiaCities"], frequency: v.frequency as Preferences["frequency"], batchLimit: Number(v.batchLimit), totalLimit: Number(v.totalLimit) };
 }
 const rules: { title: string; terms: RegExp[] }[] = [
   { title: "Engineering Manager", terms: [/\bengineering manager\b/i, /\bmanaged (?:a |an )?(?:team|engineer)/i, /\bhead of engineering\b/i] },

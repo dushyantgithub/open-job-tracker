@@ -1,3 +1,4 @@
+import { validateDiscovery } from "@/lib/job-sources";
 import { getDb, getRawDb } from "@/db";
 import { jobs } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
       const [existing] = await db.select().from(jobs).where(eq(jobs.id, input.id));
       const previous = existing ? JSON.parse(existing.data) : {};
       const job = { ...previous, ...input };
+      try { validateDiscovery(job, previous); } catch (error) { throw new InputError(error instanceof Error ? error.message : "Invalid discovery fields."); }
       const wasVerified = Boolean(previous.appliedAt && previous.confirmation);
       if (wasVerified) {
         // A later rejection/withdrawal does not undo a real submission or its cap.
