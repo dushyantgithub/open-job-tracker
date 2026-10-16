@@ -1,3 +1,4 @@
+import type { Takeover } from "@/lib/takeover";
 import { submissionMode, submissionInstructions } from "@/lib/submission-policy";
 import { salarySearchInstructions } from "@/lib/salary-preferences";
 import { sourceSearchInstructions } from "@/lib/job-sources";
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     if (body.action === "heartbeat") {
       const current = await activeRequest();
       const owns = Boolean(current && current.id === body.requestId && current.worker_id === body.workerId);
-      return json({ paused: Boolean(schedule?.paused || (await readRun()).status === "awaiting_review" || (body.requestId && !owns)), requestStatus: owns ? current?.status : null });
+      return json({ paused: Boolean(schedule?.paused || ["awaiting_review","awaiting_user","resume_pending"].includes((await readRun()).status) || (body.requestId && !owns)), requestStatus: owns ? current?.status : null });
     }
     if (body.action === "finish") {
       if (!body.requestId || !["completed", "blocked", "awaiting_review"].includes(body.status || "")) return json({ error: "Provide requestId and completed, blocked or awaiting_review status." }, 400);
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
         if(!handed[0].results.length)return json({error:"The search was paused before handoff. Acknowledge the pause and preserve prepared forms."},409);
         return json({awaitingReview:true,prepared:ready.n,request:publicRequest(row)});
       }
+      if(["awaiting_user","resume_pending"].includes((await readRun()).status) && row.status!=="pausing")return json({error:"A human takeover is pending. Preserve this checkpoint; wait for the owner and claim the same batch to resume."},409);
       const applied = await appliedTotal();
       if (body.status === "completed" && applied < row.target && row.status !== "pausing") return json({ error: `Only ${applied} applications are verified; the request target is ${row.target}.` }, 409);
       const preferences = await readSetting<Preferences>("preferences");
@@ -87,10 +89,19 @@ export async function POST(request: Request) {
       await queueBatch();
       current = await activeRequest();
     }
-    if (!current || current.status !== "queued") return json({ request: null, reason: current ? "Another request is already active." : "Waiting for the next scheduled batch." });
+    let resumed: RequestRow|null=null;
+    let resumeContext:Takeover|null=null;
+    if(current?.status==="acknowledged" && current.worker_id===body.workerId && (await readRun()).status==="resume_pending"){
+      const checkpoint=await readSetting<Takeover>("takeover");
+      if(checkpoint?.requestId===current.id && checkpoint.status==="resume_pending"){
+        const won=await db.prepare("UPDATE settings SET data=json_set(data,'$.status','preparing','$.message','Worker is checking the saved handoff and any submission receipts.') WHERE id='run' AND json_extract(data,'$.status')='resume_pending' AND EXISTS(SELECT 1 FROM requests WHERE id=? AND worker_id=? AND status='acknowledged') AND EXISTS(SELECT 1 FROM settings WHERE id='schedule' AND json_extract(data,'$.paused')=0) RETURNING id").bind(current.id,body.workerId).first();
+        if(won){resumed=current;resumeContext=checkpoint;await db.prepare("UPDATE settings SET data=json_set(data,'$.status','resumed') WHERE id='takeover' AND json_extract(data,'$.id')=?").bind(checkpoint.id).run();}
+      }
+    }
+    if (!resumed && (!current || current.status !== "queued")) return json({ request: null, reason: current ? "Another request is already active." : "Waiting for the next scheduled batch." });
     // One atomic UPDATE wins across concurrent worker processes. Never reclaim an
     // uncertain application automatically: the original worker must finish it.
-    const claimed = await db.prepare("UPDATE requests SET status='acknowledged',worker_id=?,acknowledged_at=?,notes='Claimed by a connected worker.' WHERE id=? AND status='queued' RETURNING *").bind(body.workerId, now, current.id).first<RequestRow>();
+    const claimed = resumed || await db.prepare("UPDATE requests SET status='acknowledged',worker_id=?,acknowledged_at=?,notes='Claimed by a connected worker.' WHERE id=? AND status='queued' RETURNING *").bind(body.workerId, now, current!.id).first<RequestRow>();
     if (!claimed) return json({ request: null, reason: "The request was claimed by another worker." });
     schedule = await readSetting<Schedule>("schedule");
     if (schedule?.paused) return json({ request: publicRequest(claimed), paused: true });
@@ -102,6 +113,6 @@ export async function POST(request: Request) {
     if (!ready) return json({ request: publicRequest(claimed), paused: true });
     const resume = await readSetting<ResumeData>("resume");
     const rows = await db.prepare("SELECT data FROM jobs ORDER BY updated_at DESC").all<{data: string}>();
-    return json({ request: publicRequest(claimed), preferences, submissionInstructions:submissionInstructions(preferences), searchInstructions: sourceSearchInstructions(preferences.searchPortals), salaryInstructions: salarySearchInstructions(preferences), resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });
+    return json({ request: publicRequest(claimed), resumeContext, preferences, submissionInstructions:submissionInstructions(preferences), searchInstructions: sourceSearchInstructions(preferences.searchPortals, preferences.sourceStrategy), salaryInstructions: salarySearchInstructions(preferences), resume, jobs: rows.results.map(row => JSON.parse(row.data)), run });
   } catch (error) { if (error instanceof SyntaxError) return json({ error: "Invalid JSON." }, 400); return failure(error); }
 }

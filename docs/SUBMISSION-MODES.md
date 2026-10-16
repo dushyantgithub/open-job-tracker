@@ -87,3 +87,8 @@ will escape flags. The project makes no such promise.
 
 - [Greenhouse fraud and blocklist FAQ](https://support.greenhouse.io/hc/en-us/articles/45397232315035-Fraud-Detection-and-Spam-Blocklist-Security-Privacy-FAQ)
 - [Ashby candidate fraud detection](https://docs.ashbyhq.com/candidate-fraud-detection-overview-and-admin-settings)
+
+
+## Blocked forms and source coverage
+
+Follow the [human takeover and source coverage guide](HUMAN-TAKEOVER.md). Read the latest handoff instructions before working. `request_takeover` stops the batch at a human-only step; wait for the owner and resume through `claim_batch` with the same worker ID. Do not finish or abandon the request while takeover is pending. Respect source diversity as a coverage preference, never as a way to evade ATS screening.

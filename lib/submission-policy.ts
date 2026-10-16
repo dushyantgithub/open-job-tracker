@@ -1,3 +1,4 @@
+import { takeoverInstructions } from "./takeover.ts";
 export type SubmissionMode = "automatic" | "manual_review";
 export interface ApplicationReview {
   requestId: string;
@@ -28,6 +29,7 @@ export function validateReview(value: unknown, now=Date.now()): ApplicationRevie
 export function submissionInstructions(preferences?:{submissionMode?:SubmissionMode}|null){
  return `APPLICATION SUBMISSION MODE: ${submissionMode(preferences)}
 These rules override older instructions to apply until a quota is reached. Limits are ceilings, not reasons to submit weak matches. Never promise that applications cannot be flagged by an ATS.
+${takeoverInstructions}
 COMMON PRECAUTIONS
 Use verified resume facts and consistent contact, location and work-authorization answers. Check role fit, salary rules, sponsorship and canonical posting duplicates before each application. Inspect each employer's application instructions and any stated automation policy; record the policy source and uncertainty in notes. Respect explicit restrictions and published limits. Use only normal authorized browser access or an explicitly supported application integration. No proxy rotation, identity/device spoofing, fingerprint masking, CAPTCHA bypass, fabricated human behavior, disposable identities, or attempts to circumvent blocks. Do not disable privacy/security protections. Do not share applicant accounts or browser profiles between users. Work sequentially, honor Retry-After and site limits, and stop that site's work on a security challenge, repeated errors or a block. Record the exact issue; no alternate-account or alternate-network retries. Never resubmit after a timeout until the confirmation page, saved ledger and available receipts resolve whether it was sent. A rejection alone is not evidence of an ATS fraud flag. Record actual evidence, not an invented ATS-risk score.
 ${submissionMode(preferences)==="manual_review"?`MANUAL REVIEW

@@ -151,6 +151,42 @@ test('pause is immediate, preserves in-flight proof, and permits explicit stoppe
     assert.equal((await api('/api/review',{id:'review-paused',action:'discard'})).status,200);
     assert.equal((await api('/api/data')).run.status,'paused');
 
+
+    // A human takeover retains ownership, target and capacity, then resumes exactly once.
+    await api('/api/onboarding',{...prefs,submissionMode:'automatic'});
+    await api('/api/onboarding/start',{});
+    const humanClaim=await api('/api/worker',{action:'tick',workerId:'takeover-worker'});
+    const humanId=humanClaim.request.id;
+    await api('/api/jobs',{id:'takeover-fixture',company:'Synthetic Company',title:'Engineer',status:'blocked',reason:'Synthetic CAPTCHA',jobUrl:'https://example.invalid/jobs/human'});
+    const handoffBody={workerId:'takeover-worker',requestId:humanId,jobId:'takeover-fixture',reason:'Synthetic CAPTCHA',checkpoint:'Required fields filled. Submit not clicked.',instructions:'Use this synthetic remote session.',method:'remote_takeover',handoffUrl:'https://example.invalid/private-session',expiresAt:new Date(Date.now()+600000).toISOString(),stopped:true};
+    assert.equal((await api('/api/takeover',{action:'request',...handoffBody,workerId:'wrong-worker'})).status,409);
+    const viaMcp=await api('/mcp',{jsonrpc:'2.0',id:60,method:'tools/call',params:{name:'request_takeover',arguments:handoffBody}});
+    assert.ok(!viaMcp.result.isError,JSON.stringify(viaMcp));
+    const takeover=JSON.parse(viaMcp.result.content[0].text).takeover;
+    assert.equal((await api('/api/data')).run.status,'awaiting_user');
+    assert.equal((await api('/api/worker',{action:'heartbeat',workerId:'takeover-worker',requestId:humanId})).paused,true);
+    assert.equal((await api('/api/worker',{action:'finish',workerId:'takeover-worker',requestId:humanId,status:'blocked'})).status,409);
+    assert.equal((await api('/api/jobs',{id:'takeover-fixture',status:'preparing'})).status,400);
+    assert.equal((await api('/api/takeover',{action:'resume',id:takeover.id,resolution:'not_submitted'})).status,400);
+    const ownerResume={action:'resume',id:takeover.id,resolution:'check_receipt',confirmedByUser:true};
+    const resumed=await api('/api/takeover',ownerResume);
+    assert.equal(resumed.target,humanClaim.request.target);
+    assert.equal((await api('/api/takeover',ownerResume)).alreadyQueued,true);
+    assert.equal((await api('/api/worker',{action:'tick',workerId:'wrong-worker'})).request,null);
+    const claims=await Promise.all([1,2].map(()=>api('/api/worker',{action:'tick',workerId:'takeover-worker'})));
+    assert.equal(claims.filter(c=>c.request).length,1,'one resume claim wins');
+    const resumedClaim=claims.find(c=>c.request);
+    assert.equal(resumedClaim.request.id,humanId);assert.equal(resumedClaim.request.target,humanClaim.request.target);
+    assert.equal(resumedClaim.resumeContext.resolution,'check_receipt');
+    const again=await api('/api/takeover',{action:'request',...handoffBody});
+    assert.equal(again.status,200);
+    await api('/api/worker',{action:'pause'});
+    assert.equal((await api('/api/takeover',{...ownerResume,id:again.takeover.id})).status,409,'owner pause wins over resume');
+    assert.equal((await api('/api/worker',{action:'tick',workerId:'takeover-worker'})).request,null);
+    assert.equal((await api('/api/worker',{action:'confirm_stopped',requestId:humanId})).status,200);
+    assert.equal((await api('/api/takeover',{...ownerResume,id:again.takeover.id})).status,409,'cancelled checkpoint cannot resume');
+    assert.equal((await api('/api/data')).verifiedTotal,3,'takeover actions never count as applications');
+
   } finally {
     if(child&&child.exitCode===null){child.kill('SIGTERM');await new Promise(r=>child.once('close',r));}
     await rm(directory,{recursive:true,force:true});

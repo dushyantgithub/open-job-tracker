@@ -22,6 +22,7 @@ export async function saveJobs(request: Request, ownerReview = false) {
       const previous = existing ? JSON.parse(existing.data) : {};
       if(!ownerReview && previous.status==="ready_for_review" && (await readRun()).status==="awaiting_review")throw new InputError("The owner is reviewing this draft. Do not mutate it or submit it.");
       const job = { ...previous, ...input };
+      if(!ownerReview && ["awaiting_user","resume_pending"].includes((await readRun()).status) && !(job.status==="applied"&&job.appliedAt&&job.confirmation))throw new InputError("Human takeover is pending. Preserve forms and wait for the owner to resume. Observed submission receipts can still be saved.");
       try { validateDiscovery(job, previous); } catch (error) { throw new InputError(error instanceof Error ? error.message : "Invalid discovery fields."); }
       const wasVerified = Boolean(previous.appliedAt && previous.confirmation);
       if (!ownerReview && input.userSubmittedAt !== undefined) throw new InputError("Only the owner review action may attest a manual submission.");

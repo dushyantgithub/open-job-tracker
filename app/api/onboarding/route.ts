@@ -7,8 +7,8 @@ export async function POST(request: Request) {
   try {
     if (Number(request.headers.get("content-length")) > 16384) return json({ error: "Preferences are too large." }, 413);
     const input = await request.json() as Record<string, unknown> | null;
-    const saved = await readSetting<{submissionMode?:"automatic"|"manual_review";searchPortals?: string[];salaryRules?:unknown;applyWithoutSalary?:boolean}>("preferences");
-    const preferences = validatePreferences(input && typeof input === "object" && !Array.isArray(input) ? {...input, submissionMode:input.submissionMode===undefined?(saved?saved.submissionMode||"automatic":"manual_review"):input.submissionMode, searchPortals: input.searchPortals === undefined ? saved?.searchPortals : input.searchPortals, salaryRules: input.salaryRules === undefined ? saved?.salaryRules : input.salaryRules, applyWithoutSalary: input.applyWithoutSalary === undefined ? saved?.applyWithoutSalary : input.applyWithoutSalary} : input);
+    const saved = await readSetting<{sourceStrategy?:"balanced"|"best_fit";submissionMode?:"automatic"|"manual_review";searchPortals?: string[];salaryRules?:unknown;applyWithoutSalary?:boolean}>("preferences");
+    const preferences = validatePreferences(input && typeof input === "object" && !Array.isArray(input) ? {...input, sourceStrategy:input.sourceStrategy===undefined?saved?.sourceStrategy:input.sourceStrategy, submissionMode:input.submissionMode===undefined?(saved?saved.submissionMode||"automatic":"manual_review"):input.submissionMode, searchPortals: input.searchPortals === undefined ? saved?.searchPortals : input.searchPortals, salaryRules: input.salaryRules === undefined ? saved?.salaryRules : input.salaryRules, applyWithoutSalary: input.applyWithoutSalary === undefined ? saved?.applyWithoutSalary : input.applyWithoutSalary} : input);
     if (await activeRequest()) return json({ error: "Pause the active run before changing preferences." }, 409);
     if (preferences.totalLimit < await appliedTotal()) return json({ error: "The total limit cannot be below the number already applied." }, 400);
     await writeSetting("preferences", preferences);

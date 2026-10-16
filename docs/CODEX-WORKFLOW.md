@@ -104,3 +104,8 @@ Under **Edit setup → Schedule & limits**, select **Fully automated** or
 hands off the actual prepared form; you review it and click Submit on the employer
 page. New users default to manual review; existing searches keep their mode.
 See [submission modes and browser handoff requirements](SUBMISSION-MODES.md).
+
+
+## Blocked forms and source coverage
+
+Follow the [human takeover and source coverage guide](HUMAN-TAKEOVER.md). Read the latest handoff instructions before working. `request_takeover` stops the batch at a human-only step; wait for the owner and resume through `claim_batch` with the same worker ID. Do not finish or abandon the request while takeover is pending. Respect source diversity as a coverage preference, never as a way to evade ATS screening.

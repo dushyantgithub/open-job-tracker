@@ -1,3 +1,4 @@
+import { POST as takeoverPOST } from "@/app/api/takeover/route";
 import { submissionInstructions } from "@/lib/submission-policy";
 import { salarySearchInstructions } from "@/lib/salary-preferences";
 import { sourceSearchInstructions } from "@/lib/job-sources";
@@ -27,6 +28,7 @@ export const mcpTools:McpTool[]=[
  tool("list_jobs","Read paginated application records. Check company and canonical posting URL for duplicates before submitting.",object({offset:{type:"integer",minimum:0},limit:{type:"integer",minimum:1,maximum:50},company:string,id:string,jobUrl:string})),
  tool("get_resume","Read this owner's uploaded original resume as metadata/base64 and an embedded MCP resource. Save privately with authorized file tools. Does not verify cloud file upload capability.",object()),
  tool("claim_batch","Atomically claim one authorized queued or due batch using a persistent worker ID. This mutation starts work; never call it just to test a connection. Null request means no work.",object({workerId},["workerId"]),false),
+ tool("request_takeover","Stop browser actions and hand off a blocked job to the owner. Preserves the batch and original worker. Never call the owner resume endpoint.",object({...ownership,jobId:string,reason:string,checkpoint:string,instructions:string,method:{type:"string",enum:["same_browser","saved_draft","remote_takeover","unavailable"]},handoffUrl:string,expiresAt:string,stopped:{type:"boolean",const:true}},["workerId","requestId","jobId","reason","checkpoint","instructions","method","stopped"]),false),
  tool("heartbeat","Check ownership and pause state during a claimed batch. If paused is true, stop submitting. Keep heartbeats about every 15 seconds while active.",object(ownership,["workerId","requestId"]),false),
  tool("finish_batch","Finish the owned batch as completed only when its verified target is met, awaiting_review for prepared manual forms, otherwise blocked with a truthful reason. Preserves pause and schedule rules.",object({...ownership,status:{type:"string",enum:["completed","blocked","awaiting_review"]},message:{type:"string",minLength:1,maxLength:1000}},["workerId","requestId","status","message"]),false),
  tool("pause_search","Pause scheduling and ask active work to stop. Does not cancel an external Dot/Claude schedule or recall already submitted forms. Only call at the owner's request.",object(),false),
@@ -47,11 +49,11 @@ export async function callMcpTool(name:string,raw:unknown,request:Request) {
   switch(name) {
    case "get_handoff":{
     empty.parse(raw);const [setup,resume]=await Promise.all([setupData(),readSetting<ResumeData>("resume")]);
-    value={...setup,resumeText:resume?.text??null,protocol:agentProtocol,submissionInstructions:submissionInstructions(setup.preferences),searchInstructions:sourceSearchInstructions(setup.preferences?.searchPortals),salaryInstructions:salarySearchInstructions(setup.preferences || {}),mcpInstructions:"Use claim_batch, heartbeat, record_jobs and finish_batch with the same workerId/requestId. claim_batch does not return raw resume bytes or the entire ledger: use get_resume and list_jobs. Verify tools before claiming; do not invent applicant facts or a saved schedule. No external URL fetch or SQL tool is exposed."};break;
+    value={...setup,takeover:await readSetting("takeover"),resumeText:resume?.text??null,protocol:agentProtocol,submissionInstructions:submissionInstructions(setup.preferences),searchInstructions:sourceSearchInstructions(setup.preferences?.searchPortals, setup.preferences?.sourceStrategy),salaryInstructions:salarySearchInstructions(setup.preferences || {}),mcpInstructions:"Use claim_batch, heartbeat, record_jobs and finish_batch with the same workerId/requestId. claim_batch does not return raw resume bytes or the entire ledger: use get_resume and list_jobs. Verify tools before claiming; do not invent applicant facts or a saved schedule. No external URL fetch or SQL tool is exposed."};break;
    }
    case "get_tracker_state":{
     empty.parse(raw);const [d,runnerSetup]=await Promise.all([state(),readSetting("runner_setup")]);
-    value={run:d.run,requests:d.requests,verifiedTotal:d.verifiedTotal,trackedRoles:d.jobs.length,activity:d.activity.slice(0,10),runnerSetup,serverTime:d.serverTime};break;
+    value={takeover:await readSetting("takeover"),run:d.run,requests:d.requests,verifiedTotal:d.verifiedTotal,trackedRoles:d.jobs.length,activity:d.activity.slice(0,10),runnerSetup,serverTime:d.serverTime};break;
    }
    case "list_jobs":{
     const a=z.object({offset:z.number().int().min(0).default(0),limit:z.number().int().min(1).max(50).default(25),company:z.string().min(1).max(2000).optional(),id:id.optional(),jobUrl:z.string().url().optional()}).strict().parse(raw);
@@ -70,6 +72,10 @@ export async function callMcpTool(name:string,raw:unknown,request:Request) {
     const result=await invoke(workerPOST,request,"/api/worker",{action:"tick",...a}) as Record<string,unknown>;
     // Read original resume and paginated ledger explicitly; keep claim responses small.
     const {resume:_resume,jobs:_jobs,...claim}=result;value=claim;break;
+   }
+   case "request_takeover":{
+    const a=z.object({workerId:workerIdentitySchema,requestId:id,jobId:id,reason:z.string().min(1).max(2000),checkpoint:z.string().min(1).max(2000),instructions:z.string().min(1).max(2000),method:z.enum(["same_browser","saved_draft","remote_takeover","unavailable"]),handoffUrl:z.string().max(4000).optional(),expiresAt:z.string().max(100).optional(),stopped:z.literal(true)}).strict().parse(raw);
+    value=await invoke(takeoverPOST,request,"/api/takeover",{action:"request",...a});break;
    }
    case "heartbeat":{
     const a=z.object({workerId:workerIdentitySchema,requestId:id}).strict().parse(raw);value=await invoke(workerPOST,request,"/api/worker",{action:"heartbeat",...a});break;

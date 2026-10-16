@@ -93,3 +93,8 @@ with complete review metadata, and finish awaiting_review. Do not label a postin
 link or screenshot as a preserved form. For automatic, follow the shared site
 policy, verification, deduplication and uncertainty precautions. Limits are ceilings.
 See [the full submission protocol](SUBMISSION-MODES.md).
+
+
+## Blocked forms and source coverage
+
+Follow the [human takeover and source coverage guide](HUMAN-TAKEOVER.md). Read the latest handoff instructions before working. `request_takeover` stops the batch at a human-only step; wait for the owner and resume through `claim_batch` with the same worker ID. Do not finish or abandon the request while takeover is pending. Respect source diversity as a coverage preference, never as a way to evade ATS screening.

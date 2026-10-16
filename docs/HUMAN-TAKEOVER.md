@@ -1,0 +1,25 @@
+# Human takeover, source coverage and application pace
+
+## For the applicant
+
+1. In **Edit setup → Locations**, select job boards and official company careers sites. Google, Anthropic, OpenAI, Meta, X, Atlassian, Microsoft and Amazon have direct source entries. Existing copies keep their saved selections; add the new entries explicitly.
+2. Leave **Balance equally suitable roles across sources and application portals** checked for broader coverage. Strong role fit, salary, language and authorization filters still take priority. Several discovery sites can lead to the same ATS. Rotation is not an ATS bypass or a guarantee of lower risk.
+3. In the pace step, increasing frequency, applications per run or the total cap shows a warning immediately, before saving. No universal safe application rate or numerical flag probability is claimed.
+4. If your agent encounters a CAPTCHA or other human-only blocker, it stops and creates a **Human help needed** panel. Read the exact checkpoint and follow the verified takeover link or same-session instructions. Complete the human step yourself.
+5. Return to the dashboard, report whether you submitted the form or are unsure, confirm that you have finished your actions, and click **Resume from checkpoint**. The same worker must reconnect with its existing ID. A stopped Dot/Claude session may need you to continue it; this button cannot launch a cloud agent.
+6. The agent rechecks the session, saved fields, uploads and receipts before continuing. The original batch target and application limits do not change. Manual review mode still requires you to click employer Submit.
+
+A provider must support access to the original cloud session or an employer-saved draft. Opening a job posting in a new tab does not transfer fields, files or cookies. If handoff is unavailable or expired, the panel explains that limitation. Resume asks the agent to verify recovery; it does not invent a recovered form. Never put passwords, OTPs, session tokens or sensitive answers in the dashboard notes. Finish those steps only in the actual provider interface.
+
+## For GPT, Codex, Claude and Dot agents
+
+1. Read fresh `get_handoff`, saved `sourceStrategy`, `searchInstructions`, and `submissionInstructions` before each batch. Check every selected source, including official company careers, and log factual coverage or access blockers. Follow official redirects and verify the actual employer; X's careers entry currently redirects to xAI.
+2. Prefer the least represented discovery source and application portal among equally suitable eligible jobs in the current batch. Use the saved ledger, preserve first discovery, and deduplicate by canonical employer posting. Never force diversity with weak matches. If only one source has strong matches, document that and honor its limits. Never rotate sources, accounts or networks to evade a block.
+3. At a human-only barrier, save the affected job as `blocked`, stop browser actions, and call `request_takeover`. Required arguments: `workerId`, `requestId`, `jobId`, `reason`, `checkpoint`, `instructions`, `method`, `stopped:true`. Methods are `same_browser`, `saved_draft`, `remote_takeover`, or `unavailable`. Supported handoffs need a future `expiresAt`; remote takeover/saved drafts need a verified private HTTPS `handoffUrl` without credentials, query parameters or fragments.
+4. The tool atomically sets the run to `awaiting_user` and disables scheduled batches. The request remains acknowledged to reserve ownership and capacity. Do not call `finish_batch` or continue browsing. Agents never invoke the owner-only resume action. Notify the owner of the specific step required.
+5. Once the owner requests resume, call `claim_batch` with the **same persistent workerId**. Only that worker can claim the existing checkpoint once. Read `resumeContext` and the latest job ledger. If the owner chose `check_receipt`, confirm submission state before any retry. Any uncertainty blocks a retry. Never treat the owner button as an employer submission.
+6. Preserve observed receipt evidence even during a pause. User pause overrides takeover resume; a cancelled batch cannot resume. After a worker crash, do not assume browser session survival or automatically replay an uncertain form.
+
+For direct HTTP integrations, the equivalents are `POST /api/takeover` with `action:"request"`, `GET /api/takeover`, and `POST /api/worker` with `action:"tick"`. `POST /api/takeover` with `action:"resume"` is an owner UI action, deliberately absent from MCP tools. Like the rest of this single-owner application, HTTP routes require an owner-private gateway when hosted; same-origin checks alone are not authentication.
+
+The bundled Codex worker reads an atomically written private `handoff-request.json`, posts the checkpoint, stops the child process, and retains its worker identity. A resumed execution gets `resume-checkpoint.json` and fresh ledger data. Browser persistence depends on the configured browser provider. There is no CAPTCHA solver, proxy rotation, fake human typing, identity masking or detection-evasion integration.

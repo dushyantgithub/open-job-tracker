@@ -24,6 +24,8 @@ are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
   sponsorship information, resume versions, and confirmation evidence.
 - Supports search, sorting, filters, detail drawers, live updates, and CSV export.
 - Saves selected search portals, including LinkedIn, Naukri, Instahyre, Wellfound, Cutshort and Indeed. The agent must check each selected source and log checked, no-match or blocked outcomes.
+- Includes official careers sources for Google, Anthropic, OpenAI, Meta, X, Atlassian, Microsoft and Amazon, plus balanced source coverage among equally suitable roles.
+- Supports human takeover for CAPTCHA/login blockers with a saved checkpoint and same-worker resume. Increasing application pace shows an immediate risk warning. See [takeover and source coverage](docs/HUMAN-TAKEOVER.md).
 - Tracks the first discovery source, listing URL and time separately from the application portal. Historical unknown sources stay Not recorded.
 
 ## Choose your agent
